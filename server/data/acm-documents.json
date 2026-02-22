@@ -1,0 +1,36 @@
+{
+  "grant_docs": {
+    "hcc": [
+      "Course content with training schedule (date and time)",
+      "Accredited trainer profile",
+      "Invoice or quotation for course fees",
+      "Invoice or quotation for chartered transportation (if any)",
+      "HRD Corp Special Approval Letter for LTM (if any)",
+      "Acknowledgement Letter for Focus Area / Industry Specific (case-by-case)"
+    ],
+    "sbl": [
+      "Course content with training schedule (date and time)",
+      "Trainer profile",
+      "Invoice or quotation for course fees",
+      "Service/sales agreement or purchase receipt (if vendor conducts training)",
+      "Invoice or quotation for chartered transportation (if any)",
+      "HRD Corp Special Approval Letter (if any)",
+      "Acknowledgement Letter for Focus Area / Industry Specific (case-by-case)"
+    ],
+    "slb": [
+      "Course content with training schedule (date and time)",
+      "Trainer profile",
+      "Invoice or quotation for course fees (ONE per training course)",
+      "Joint Training Letter from organising employer",
+      "Invoice or quotation for chartered transportation (if any)",
+      "HRD Corp Special Approval Letter (if any)"
+    ]
+  },
+  "claim_docs": {
+    "course_fee_hcc": "Invoice issued to HRD Corp",
+    "course_fee_other": "Official receipt and proof of payment",
+    "air_ticket": "Ticket stub / e-Ticket / receipt and invoice from travel agent",
+    "transport": "Receipt from transport provider",
+    "none": "No supporting document needed"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "inhouse": {
+    "full_day": 10500,
+    "half_day": 6000,
+    "prorate_threshold": 5,
+    "min_pax_f2f": 2,
+    "min_pax_rot": 1,
+    "max_pax_soft": 50,
+    "max_pax_tech": 25
+  },
+  "public_training": {
+    "full_day": 1750,
+    "half_day": 1000,
+    "max_pax_per_employer": 9
+  },
+  "elearning": {
+    "hour_table": {
+      "1": 125,
+      "2": 250,
+      "3": 375,
+      "4": 500,
+      "5": 625,
+      "6": 750,
+      "7": 875
+    }
+  },
+  "overseas": {
+    "daily_allowance": 1500,
+    "extra_days_max": 2,
+    "assistance_rate": 0.50
+  },
+  "allowances": {
+    "internal_trainer_full": 1400,
+    "internal_trainer_half": 800,
+    "travel_under_100": 250,
+    "travel_over_100": 500,
+    "meal_full": 100,
+    "meal_half": 50,
+    "overseas_trainer": 500,
+    "consumable": 100
+  },
+  "development": {
+    "study_local": 900,
+    "study_overseas": 5000,
+    "thesis_masters": 600,
+    "thesis_phd": 1000
+  },
+  "seminar": {
+    "min_pax_inhouse": 51,
+    "min_pax_public_per_tp": 51,
+    "overseas_assistance": 0.50
+  },
+  "as_charged_estimate": 10000,
+  "dev_estimate": 20000,
+  "audit_risk_pax": 25
+}

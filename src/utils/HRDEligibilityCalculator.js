@@ -14,8 +14,8 @@
  * Max pax per group: 50 (non-technical) / 25 (technical) per Employer's Circular No. 3/2024
  */
 
-import { RATES } from '../data/acm-rates.js';
-import { CLAIM_DOCS, GRANT_DOCS } from '../data/acm-documents.js';
+import { RATES as RATES_STATIC } from '../data/acm-rates.js';
+import { CLAIM_DOCS as CLAIM_DOCS_STATIC } from '../data/acm-documents.js';
 
 /**
  * Calculate HRD Corp ACM eligibility.
@@ -52,7 +52,12 @@ import { CLAIM_DOCS, GRANT_DOCS } from '../data/acm-documents.js';
  *
  * @returns {object}  { items, airTicketEntitled, totalClaimable, warnings }
  */
-export function calculateEligibility(inputs) {
+export function calculateEligibility(inputs, ratesOverride = null, claimDocsOverride = null) {
+    // Use live data from server if provided, otherwise fall back to static file values
+    // eslint-disable-next-line no-shadow
+    const RATES      = ratesOverride     || RATES_STATIC;
+    // eslint-disable-next-line no-shadow
+    const CLAIM_DOCS = claimDocsOverride || CLAIM_DOCS_STATIC;
     const {
         scheme                    = 'hcc',
         trainingType              = 'inhouse',

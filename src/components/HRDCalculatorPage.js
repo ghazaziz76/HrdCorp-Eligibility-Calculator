@@ -29,20 +29,36 @@ const HRDCalculatorPage = () => {
                         Allowable Cost Matrix (ACM) — Public Preview · No login required
                     </p>
                 </div>
-                <a
-                    href="/"
-                    style={{
-                        color: 'white',
-                        textDecoration: 'none',
-                        fontSize: '13px',
-                        background: 'rgba(255,255,255,0.15)',
-                        padding: '7px 16px',
-                        borderRadius: '20px',
-                        border: '1px solid rgba(255,255,255,0.3)'
-                    }}
-                >
-                    ← Back to Login
-                </a>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <a
+                        href="/admin"
+                        style={{
+                            color: 'white',
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            background: 'rgba(255,255,255,0.12)',
+                            padding: '7px 14px',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(255,255,255,0.25)'
+                        }}
+                    >
+                        ⚙️ Admin
+                    </a>
+                    <a
+                        href="/"
+                        style={{
+                            color: 'white',
+                            textDecoration: 'none',
+                            fontSize: '13px',
+                            background: 'rgba(255,255,255,0.15)',
+                            padding: '7px 16px',
+                            borderRadius: '20px',
+                            border: '1px solid rgba(255,255,255,0.3)'
+                        }}
+                    >
+                        ← Back to Login
+                    </a>
+                </div>
             </div>
 
             {/* Logos row — below banner */}
