@@ -89,4 +89,25 @@ router.post('/admin/upload/:type', auth, upload.single('file'), (req, res) => {
     res.json({ success: true, filename: req.file.filename });
 });
 
+// ── Admin: get monitor status ──────────────────────────────
+router.get('/admin/monitor', auth, (req, res) => {
+    try {
+        const data = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'monitor.json'), 'utf8'));
+        res.json(data);
+    } catch {
+        res.json({});
+    }
+});
+
+// ── Admin: trigger manual check ───────────────────────────
+router.post('/admin/monitor/check', auth, async (req, res) => {
+    try {
+        const { runCheck } = require('../monitor');
+        const result = await runCheck(false);
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

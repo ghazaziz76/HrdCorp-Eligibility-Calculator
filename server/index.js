@@ -1,7 +1,10 @@
-const express    = require('express');
-const cors       = require('cors');
-const path       = require('path');
+require('dotenv').config();
+
+const express     = require('express');
+const cors        = require('cors');
+const path        = require('path');
 const adminRoutes = require('./routes/admin');
+const { startMonitor } = require('./monitor');
 
 const app  = express();
 const PORT = process.env.PORT || 4000;
@@ -22,4 +25,5 @@ app.get('/{*path}', (req, res) => {
 app.listen(PORT, () => {
     console.log(`✅ HRD Corp Calculator server running on port ${PORT}`);
     console.log(`   Admin panel: http://localhost:${PORT}/admin`);
+    startMonitor();
 });
