@@ -11,22 +11,26 @@ export const HRDCorpCostCalculator = () => {
     // ── Basic fields ──────────────────────────────────────────
     const [trainingType,    setTrainingType]    = React.useState('inhouse');
     const [trainerType,     setTrainerType]     = React.useState('external');
+    const [numberOfTrainers, setNumberOfTrainers] = React.useState(1);
     const [venue,           setVenue]           = React.useState('employer_premises');
-    const [courseCategory,  setCourseCategory]  = React.useState('general');
+    const [courseCategory,  setCourseCategory]  = React.useState('general_non_technical');
     const [duration,        setDuration]        = React.useState('full_day');
     const [days,            setDays]            = React.useState(1);
     const [elearningHours,  setElearningHours]  = React.useState(7);
     const [extraDays,       setExtraDays]       = React.useState(0);
     const [internalTrainerFromBranch, setInternalTrainerFromBranch] = React.useState(false);
+    const [numberOfSpeakers, setNumberOfSpeakers] = React.useState(2);
+    const [hasLTM,          setHasLTM]          = React.useState(false);
+    const [ltmActualCost,   setLtmActualCost]   = React.useState('');
 
     // ── Development Programme fields ──────────────────────────
-    const [devLevel,              setDevLevel]              = React.useState('degree');  // 'phd'|'masters'|'degree'|'diploma'|'skm'
-    const [skmLevel,              setSkmLevel]              = React.useState('3');       // SKM Level 1–5
+    const [devLevel,              setDevLevel]              = React.useState('degree');
+    const [skmLevel,              setSkmLevel]              = React.useState('3');
     const [devLocation,           setDevLocation]           = React.useState('local');
-    const [devPrivateInstitution, setDevPrivateInstitution] = React.useState(false);    // overseas private higher ed → 100% fee
+    const [devPrivateInstitution, setDevPrivateInstitution] = React.useState(false);
     const [devMonths,             setDevMonths]             = React.useState(3);
     const [devFullTime,           setDevFullTime]           = React.useState(true);
-    const [actualCourseFee,       setActualCourseFee]       = React.useState('');  // per pax, from brochure
+    const [actualCourseFee,       setActualCourseFee]       = React.useState('');
 
     // ── Participant groups ────────────────────────────────────
     const [host,         setHost]         = React.useState({ pax: 10, kmDistance: 'under_100' });
@@ -34,12 +38,26 @@ export const HRDCorpCostCalculator = () => {
     const [subsidiaries, setSubsidiaries] = React.useState([]);
 
     // ── Result ────────────────────────────────────────────────
-    const [result, setResult] = React.useState(null);
+    const [result,          setResult]          = React.useState(null);
+    const [blockError,      setBlockError]      = React.useState(null);
 
-    const isROT         = trainingType === 'rot_inhouse' || trainingType === 'rot_public';
-    const isHotel       = venue === 'external_hotel' && !isROT;
-    const isInhouse     = trainingType === 'inhouse' || trainingType === 'rot_inhouse';
-    const isDevelopment = trainingType === 'development';
+    // ── Derived flags (mirror engine logic) ──────────────────
+    const isCoachingMentoring = trainingType === 'coaching_mentoring';
+    const isMobileElearning   = trainingType === 'mobile_elearning';
+    const isLocalSeminar      = trainingType === 'seminar_conference';
+    const isOverseasSeminar   = trainingType === 'overseas_seminar';
+    const isSeminar           = isLocalSeminar || isOverseasSeminar;
+    const isElearning         = trainingType === 'elearning' || isMobileElearning;
+    const isDevelopment       = trainingType === 'development';
+    const isROTInhouse        = trainingType === 'rot_inhouse';
+    const isROTPublic         = trainingType === 'rot_public';
+    const isROT               = isROTInhouse || isROTPublic;
+    const isOverseas          = trainingType === 'overseas';
+    const isAnyOverseas       = isOverseas || isOverseasSeminar;
+    const isPublic            = trainingType === 'public';
+    const isInhouse           = trainingType === 'inhouse' || isROTInhouse || isCoachingMentoring;
+    const isHotel             = venue === 'external_hotel'; // no !isROT — ROT at hotel is valid
+    const isGeneralCourse     = courseCategory === 'general_non_technical' || courseCategory === 'general_technical' || courseCategory === 'general';
 
     // ── Branch handlers ───────────────────────────────────────
     const addBranch = () => setBranches(prev => [...prev, { label: `Branch ${prev.length + 1}`, pax: 2, kmDistance: 'under_100' }]);
@@ -47,32 +65,62 @@ export const HRDCorpCostCalculator = () => {
     const updateBranch = (i, field, val) => setBranches(prev => prev.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
 
     // ── Subsidiary handlers ───────────────────────────────────
-    const addSubsidiary = () => setSubsidiaries(prev => [...prev, { label: `Subsidiary ${prev.length + 1}`, pax: 5, kmDistance: 'under_100' }]);
+    const addSubsidiary = () => setSubsidiaries(prev => [...prev, {
+        label:        scheme === 'slb' ? `Employer ${prev.length + 1}` : `Subsidiary ${prev.length + 1}`,
+        pax:          5,
+        kmDistance:   'under_100',
+        hrdcorpRegNo: '',
+    }]);
     const removeSubsidiary = (i) => setSubsidiaries(prev => prev.filter((_, idx) => idx !== i));
     const updateSubsidiary = (i, field, val) => setSubsidiaries(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
 
     const calculate = () => {
+        setBlockError(null);
+
+        // Hard enforcement: max pax per group for general in-house courses
+        if (isInhouse && isGeneralCourse) {
+            const numT      = parseInt(numberOfTrainers) || 1;
+            const isTech    = courseCategory === 'general_technical';
+            const maxAllowed = isTech ? 25 * numT : 50 * numT;
+            if (totalPax > maxAllowed) {
+                setBlockError(
+                    `Cannot calculate — participant limit exceeded.\n\n` +
+                    `General (${isTech ? 'Technical' : 'Non-Technical'}) in-house courses allow a maximum of ` +
+                    `${maxAllowed} pax with ${numT} trainer${numT > 1 ? 's' : ''} ` +
+                    `(${numT} × ${isTech ? 25 : 50} pax/trainer — Employer's Circular No. 3/2024).\n\n` +
+                    `Current total: ${totalPax} pax. ` +
+                    `Please reduce the number of participants or add more trainers.`
+                );
+                setResult(null);
+                return;
+            }
+        }
+
         const r = calculateEligibility({
             scheme,
             trainingType,
             trainerType,
+            numberOfTrainers:          parseInt(numberOfTrainers)   || 1,
             venue,
             courseCategory,
             duration,
-            days:           parseInt(days)           || 1,
-            extraDays:      parseInt(extraDays)      || 0,
-            elearningHours: parseInt(elearningHours) || 7,
+            days:                      parseInt(days)               || 1,
+            extraDays:                 parseInt(extraDays)          || 0,
+            elearningHours:            parseInt(elearningHours)     || 7,
             internalTrainerFromBranch,
+            numberOfSpeakers:          parseInt(numberOfSpeakers)   || 1,
+            hasLTM,
+            ltmActualCost:             parseFloat(ltmActualCost)    || 0,
             host:        { ...host,  pax: parseInt(host.pax) || 0 },
-            branches:    branches.map(b    => ({ ...b,    pax: parseInt(b.pax)    || 0 })),
-            subsidiaries:subsidiaries.map(s => ({ ...s,   pax: parseInt(s.pax)   || 0 })),
+            branches:    branches.map(b    => ({ ...b, pax: parseInt(b.pax) || 0 })),
+            subsidiaries:subsidiaries.map(s => ({ ...s, pax: parseInt(s.pax) || 0 })),
             devLevel,
             skmLevel,
             devLocation,
             devPrivateInstitution,
-            devMonths:             parseInt(devMonths)      || 3,
+            devMonths:                 parseInt(devMonths)          || 3,
             devFullTime,
-            actualCourseFeePerPax: parseFloat(actualCourseFee) || 0
+            actualCourseFeePerPax:     parseFloat(actualCourseFee)  || 0
         });
         setResult(r);
     };
@@ -84,6 +132,9 @@ export const HRDCorpCostCalculator = () => {
     const totalPax = (parseInt(host.pax) || 0)
         + branches.reduce((s, b) => s + (parseInt(b.pax) || 0), 0)
         + subsidiaries.reduce((s, c) => s + (parseInt(c.pax) || 0), 0);
+
+    // Clear block error whenever key inputs change (must be after totalPax is defined)
+    React.useEffect(() => { setBlockError(null); }, [totalPax, numberOfTrainers, courseCategory, trainingType]);
 
     // ── Participant row renderer ───────────────────────────────
     const ParticipantRow = ({ label, pax, kmDistance, showKm, hint, onPaxChange, onKmChange, onRemove, badge, badgeColor }) => (
@@ -107,7 +158,7 @@ export const HRDCorpCostCalculator = () => {
                         <label style={lStyle}>Distance to Venue</label>
                         <select style={iStyle} value={kmDistance} onChange={e => onKmChange(e.target.value)}>
                             <option value="under_100">&lt;100 km → RM250/day/pax</option>
-                            <option value="over_100">≥100 km → RM500/day/pax</option>
+                            <option value="over_100">≥100 km → RM500/day/pax (+1 extra travel day for full-day)</option>
                         </select>
                     </div>
                 )}
@@ -132,13 +183,16 @@ export const HRDCorpCostCalculator = () => {
                         { value: 'sbl', label: 'Skim Bantuan Latihan (SBL)', desc: 'Employer pays upfront, claims reimbursement. Non-registered TPs allowed.' },
                         { value: 'slb', label: 'Skim Latihan Bersama (SLB)', desc: 'Joint in-house training across multiple employers. Cost shared by pax.' }
                     ].map(s => (
-                        <div key={s.value} onClick={() => { setScheme(s.value); setResult(null);
-                            // SLB: in-house only — reset if current type not in-house
-                            if (s.value === 'slb' && trainingType !== 'inhouse' && trainingType !== 'rot_inhouse') {
-                                setTrainingType('inhouse'); setBranches([]); setSubsidiaries([]);
+                        <div key={s.value} onClick={() => {
+                            setScheme(s.value);
+                            setResult(null);
+                            // SLB: in-house and ROT in-house only — reset if current type not eligible
+                            if (s.value === 'slb' && !['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(trainingType)) {
+                                setTrainingType('inhouse');
+                                setBranches([]);
                             }
-                            // Development Programme only for HCC/SBL
-                            if (s.value === 'slb' && trainingType === 'development') setTrainingType('inhouse');
+                            // SLB: no subsidiary input — clear any existing
+                            if (s.value === 'slb') setSubsidiaries([]);
                         }}
                             style={{ padding: '14px', borderRadius: '8px', cursor: 'pointer', border: scheme === s.value ? '2px solid #2e7d32' : '2px solid #ddd',
                                 background: scheme === s.value ? '#c8e6c9' : '#fff', transition: 'all 0.15s' }}>
@@ -156,37 +210,67 @@ export const HRDCorpCostCalculator = () => {
             <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '24px', marginBottom: '20px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
+                    {/* Training Type */}
                     <div style={rStyle}>
                         <label style={lStyle}>Type of Training</label>
                         <select style={iStyle} value={trainingType} onChange={e => {
                             const t = e.target.value;
                             setTrainingType(t);
-                            // Subsidiaries only for in-house / ROT-inhouse; branches cleared for some types
-                            if (t !== 'inhouse' && t !== 'rot_inhouse') setSubsidiaries([]);
-                            if (t === 'elearning' || t === 'overseas' || t === 'development') setBranches([]);
+                            // Clear subsidiaries for non-inhouse types
+                            if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setSubsidiaries([]);
+                            // Clear branches for e-learning, overseas, and development types
+                            if (['elearning', 'mobile_elearning', 'overseas', 'overseas_seminar', 'development'].includes(t)) setBranches([]);
+                            // Reset LTM when not in-house
+                            if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setHasLTM(false);
                             setResult(null);
                         }}>
-                            <option value="inhouse">In-House (Face-to-Face)</option>
-                            <option value="rot_inhouse">ROT — In-House (Employer-organised, Remote)</option>
-                            {scheme !== 'slb' && <option value="rot_public">ROT — Public (TP-organised, Remote)</option>}
-                            {scheme !== 'slb' && <option value="public">Local Public Training / Seminar / Conference</option>}
-                            {scheme !== 'slb' && <option value="elearning">E-Learning</option>}
-                            {scheme !== 'slb' && <option value="overseas">Overseas (Training / Seminar / Conference)</option>}
-                            {scheme !== 'slb' && <option value="development">Development Programme (Academic / Technical / Vocational / Professional)</option>}
+                            <optgroup label="── In-House / Coaching ──────────────">
+                                <option value="inhouse">In-House (Face-to-Face)</option>
+                                <option value="rot_inhouse">ROT — In-House (Remote, Employer-organised)</option>
+                                {scheme !== 'slb' && <option value="coaching_mentoring">Coaching &amp; Mentoring</option>}
+                            </optgroup>
+                            {scheme !== 'slb' && (
+                                <optgroup label="── Public / Remote ──────────────────">
+                                    <option value="rot_public">ROT — Public (Remote, TP-organised)</option>
+                                    <option value="public">Local Public Training</option>
+                                    <option value="seminar_conference">Local Seminar &amp; Conference</option>
+                                </optgroup>
+                            )}
+                            {scheme !== 'slb' && (
+                                <optgroup label="── E-Learning ───────────────────────">
+                                    <option value="elearning">E-Learning (Asynchronous, Self-paced)</option>
+                                    <option value="mobile_elearning">Mobile E-Learning</option>
+                                </optgroup>
+                            )}
+                            {scheme !== 'slb' && (
+                                <optgroup label="── Overseas ─────────────────────────">
+                                    <option value="overseas">Overseas Training</option>
+                                    <option value="overseas_seminar">Overseas Seminar &amp; Conference</option>
+                                </optgroup>
+                            )}
+                            {scheme !== 'slb' && (
+                                <optgroup label="── Academic / Vocational ────────────">
+                                    <option value="development">Development Programme (Degree / Diploma / SKM / Masters / PhD)</option>
+                                </optgroup>
+                            )}
                         </select>
                     </div>
 
+                    {/* Course Category — not for development */}
                     {!isDevelopment && (
                     <div style={rStyle}>
                         <label style={lStyle}>Course Category</label>
                         <select style={iStyle} value={courseCategory} onChange={e => setCourseCategory(e.target.value)}>
-                            <option value="general">General Course</option>
-                            <option value="focus_area">Focus Area (est. RM10,000/pax)</option>
-                            <option value="industry_specific">Industry Specific (est. RM10,000/pax)</option>
-                            <option value="certification">Professional Certification (est. RM10,000/pax)</option>
+                            <option value="general_non_technical">General (Non-Technical)</option>
+                            <option value="general_technical">General (Technical)</option>
+                            <option value="focus_area">Focus Area (as charged, per pax)</option>
+                            <option value="industry_specific">Industry Specific (as charged, per pax)</option>
+                            <option value="certification">Professional Certification (as charged, per pax)</option>
                         </select>
                     </div>
                     )}
+
+                    {/* Programme Level — development only */}
                     {isDevelopment && (
                     <div style={rStyle}>
                         <label style={lStyle}>Programme Level</label>
@@ -200,28 +284,50 @@ export const HRDCorpCostCalculator = () => {
                     </div>
                     )}
 
-                    {(trainingType === 'inhouse' || isDevelopment) && (
+                    {/* Venue — for in-house (including ROT inhouse) and development */}
+                    {(isInhouse || isDevelopment) && (
                         <div style={rStyle}>
                             <label style={lStyle}>Training Venue</label>
                             <select style={iStyle} value={venue} onChange={e => { setVenue(e.target.value); setResult(null); }}>
-                                <option value="employer_premises">Employer's Own Premises</option>
-                                <option value="external_hotel">{isDevelopment ? 'College / University / Training Institution' : 'Hotel / External Training Centre'}</option>
+                                <option value="employer_premises">
+                                    {isDevelopment ? 'College / University / Training Institution' : isROT ? 'Employer\'s Own Premises (ROT — Inhouse)' : 'Employer\'s Own Premises'}
+                                </option>
+                                <option value="external_hotel">
+                                    {isDevelopment ? 'Overseas Institution' : isROT ? 'External Venue / Hotel (ROT — Outside)' : 'Hotel / External Training Centre'}
+                                </option>
                             </select>
                         </div>
                     )}
 
+                    {/* Number of Trainers — in-house general courses only (for pax cap calculation) */}
+                    {isInhouse && !isDevelopment && isGeneralCourse && (
+                        <div style={rStyle}>
+                            <label style={lStyle}>Number of Trainers</label>
+                            <input type="number" min="1" style={iStyle} value={numberOfTrainers}
+                                onChange={e => setNumberOfTrainers(e.target.value)} />
+                            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
+                                Max pax: Non-Technical = {50 * (parseInt(numberOfTrainers) || 1)} pax · Technical = {25 * (parseInt(numberOfTrainers) || 1)} pax (Employer's Circular No. 3/2024)
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Trainer Type — in-house training only */}
                     {isInhouse && !isDevelopment && (
                         <div style={rStyle}>
                             <label style={lStyle}>Trainer Type</label>
                             <select style={iStyle} value={trainerType} onChange={e => setTrainerType(e.target.value)}>
                                 <option value="internal">Internal Trainer</option>
                                 <option value="external">External Trainer</option>
-                                {trainingType === 'inhouse' && <option value="overseas">Overseas Trainer</option>}
+                                {/* Overseas trainer only for face-to-face in-house (not ROT — trainer is online) */}
+                                {(trainingType === 'inhouse' || isCoachingMentoring) && !isROT && (
+                                    <option value="overseas">Overseas Trainer</option>
+                                )}
                             </select>
                         </div>
                     )}
 
-                    {trainingType === 'inhouse' && trainerType === 'internal' && (
+                    {/* Internal Trainer From Branch checkbox */}
+                    {(trainingType === 'inhouse' || isCoachingMentoring) && trainerType === 'internal' && (
                         <div style={{ ...rStyle, display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '20px' }}>
                             <input type="checkbox" id="branchTrainer" checked={internalTrainerFromBranch}
                                 onChange={e => setInternalTrainerFromBranch(e.target.checked)}
@@ -232,8 +338,8 @@ export const HRDCorpCostCalculator = () => {
                         </div>
                     )}
 
-
-                    {trainingType !== 'elearning' && !isDevelopment && (
+                    {/* Duration — not for e-learning or development */}
+                    {!isElearning && !isDevelopment && (
                         <div style={rStyle}>
                             <label style={lStyle}>Daily Duration</label>
                             <select style={iStyle} value={duration} onChange={e => setDuration(e.target.value)}>
@@ -243,26 +349,41 @@ export const HRDCorpCostCalculator = () => {
                         </div>
                     )}
 
-                    {trainingType !== 'elearning' && !isDevelopment && (
+                    {/* Number of Training Days — not for e-learning or development */}
+                    {!isElearning && !isDevelopment && (
                         <div style={rStyle}>
                             <label style={lStyle}>Number of Training Days</label>
                             <input type="number" min="1" style={iStyle} value={days} onChange={e => setDays(e.target.value)} />
                         </div>
                     )}
 
-                    {trainingType === 'elearning' && (
+                    {/* Number of Speakers — seminar / conference only */}
+                    {isSeminar && (
+                        <div style={rStyle}>
+                            <label style={lStyle}>Number of Speakers</label>
+                            <input type="number" min="1" style={iStyle} value={numberOfSpeakers}
+                                onChange={e => setNumberOfSpeakers(e.target.value)} />
+                            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
+                                Minimum: 1 speaker (half-day) · 2 speakers (full-day)
+                            </p>
+                        </div>
+                    )}
+
+                    {/* E-Learning hours */}
+                    {isElearning && (
                         <div style={rStyle}>
                             <label style={lStyle}>Total E-Learning Hours</label>
                             <input type="number" min="1" style={iStyle} value={elearningHours}
                                 onChange={e => setElearningHours(e.target.value)}
                                 placeholder="e.g. 7, 10, 14..." />
                             <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
-                                ≤7 hrs: RM125/hr/pax. &gt;7 hrs: first 7hrs + additional half-day (4hrs=RM500) or full-day (7hrs=RM875) blocks per pax.
+                                ≤7 hrs: RM125/hr/pax. &gt;7 hrs: first 7hrs + additional half-day (4hrs = RM500) or full-day (7hrs = RM875) blocks per pax.
                             </p>
                         </div>
                     )}
 
-                    {trainingType === 'overseas' && (
+                    {/* Extra Travel Days — overseas training and overseas seminar */}
+                    {isAnyOverseas && (
                         <div style={rStyle}>
                             <label style={lStyle}>Extra Travel Days for Daily Allowance</label>
                             <select style={iStyle} value={extraDays} onChange={e => setExtraDays(e.target.value)}>
@@ -273,6 +394,31 @@ export const HRDCorpCostCalculator = () => {
                             <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
                                 HRDCorp allows up to 2 extra days for international travel. Daily allowance = RM1,500 × pax × (training days + extra) × 50%.
                             </p>
+                        </div>
+                    )}
+
+                    {/* LTM — Licensed Training Materials (in-house only) */}
+                    {isInhouse && (
+                        <div style={{ ...rStyle, background: '#f3e5f5', border: '1px solid #ce93d8', borderRadius: '8px', padding: '14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: hasLTM ? '12px' : 0 }}>
+                                <input type="checkbox" id="hasLTM" checked={hasLTM}
+                                    onChange={e => { setHasLTM(e.target.checked); if (!e.target.checked) setLtmActualCost(''); }}
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }} />
+                                <label htmlFor="hasLTM" style={{ ...lStyle, marginBottom: 0, cursor: 'pointer', color: '#6a1b9a' }}>
+                                    Licensed Training Materials (LTM)
+                                    <span style={{ display: 'block', fontSize: '11px', color: '#888', fontWeight: '400', marginTop: '2px' }}>
+                                        Requires HRD Corp Special Approval Letter — pre-approval mandatory
+                                    </span>
+                                </label>
+                            </div>
+                            {hasLTM && (
+                                <div>
+                                    <label style={lStyle}>LTM Actual Cost (RM) — leave blank if unknown</label>
+                                    <input type="number" min="0" style={iStyle} value={ltmActualCost}
+                                        onChange={e => setLtmActualCost(e.target.value)}
+                                        placeholder="As charged — enter actual cost or leave blank" />
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -337,7 +483,7 @@ export const HRDCorpCostCalculator = () => {
             </div>
 
             {/* ── ACTUAL COURSE FEE (from brochure / offer letter) ── */}
-            {(trainingType === 'public' || trainingType === 'rot_public' || trainingType === 'overseas' || isDevelopment || (isInhouse && subsidiaries.length > 0)) && (
+            {(isPublic || isROTPublic || isLocalSeminar || isAnyOverseas || isDevelopment || (isInhouse && trainerType !== 'internal')) && (
                 <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
                     <h4 style={{ margin: '0 0 4px', color: '#e65100' }}>💰 Actual Course Fee (from Brochure / Offer Letter)</h4>
                     <p style={{ fontSize: '12px', color: '#795548', margin: '0 0 14px', lineHeight: '1.5' }}>
@@ -376,7 +522,7 @@ export const HRDCorpCostCalculator = () => {
                 </div>
                 <p style={{ fontSize: '12px', color: '#666', margin: '0 0 14px' }}>
                     {scheme === 'slb'
-                        ? <><strong>Branches</strong> = same company departments (share host's proportional cost). <strong>Other Employers</strong> = separate participating companies (public rate per pax applies).</>
+                        ? <><strong>Branches</strong> = same company departments (share host's proportional cost). <strong>Other Employers</strong> = separate participating companies (cost prorated by total pax).</>
                         : <><strong>Branches</strong> = same company (in-house rate stays). <strong>Subsidiaries</strong> = separate companies (triggers public rate for course fee).</>
                     }
                 </p>
@@ -384,67 +530,104 @@ export const HRDCorpCostCalculator = () => {
                 {/* Host Company */}
                 <p style={{ fontSize: '12px', fontWeight: '700', color: '#1565c0', margin: '0 0 6px' }}>HOST COMPANY</p>
                 <ParticipantRow
-                    label={trainingType === 'elearning' ? 'Total Employees' : 'Host Company'}
+                    label={isElearning ? 'Total Employees' : 'Host Company'}
                     badge="Host"
                     badgeColor="#1565c0"
                     pax={host.pax}
                     kmDistance={host.kmDistance}
-                    showKm={!isROT && (isHotel || trainingType === 'public')}
-                    hint={trainingType === 'elearning' || trainingType === 'rot_public' ? false : undefined}
+                    showKm={isHotel || isPublic || isROTPublic || isSeminar}
+                    hint={isElearning || isROTPublic ? false : undefined}
                     onPaxChange={v => setHost(h => ({ ...h, pax: v }))}
                     onKmChange={v  => setHost(h => ({ ...h, kmDistance: v }))}
                 />
 
-                {/* Branches — not applicable for e-learning, overseas or development */}
-                {trainingType !== 'elearning' && trainingType !== 'overseas' && trainingType !== 'development' && branches.length > 0 && (
+                {/* Branches */}
+                {!isElearning && !isAnyOverseas && !isDevelopment && branches.length > 0 && (
                     <p style={{ fontSize: '12px', fontWeight: '700', color: '#2e7d32', margin: '10px 0 6px' }}>BRANCHES (same company — in-house rate)</p>
                 )}
-                {trainingType !== 'elearning' && trainingType !== 'overseas' && trainingType !== 'development' && branches.map((b, i) => (
+                {!isElearning && !isAnyOverseas && !isDevelopment && branches.map((b, i) => (
                     <ParticipantRow key={i}
                         label={b.label}
                         badge="Branch"
                         badgeColor="#2e7d32"
                         pax={b.pax}
                         kmDistance={b.kmDistance}
-                        showKm={!isROT}
-                        hint={isROT ? false : undefined}
+                        showKm={true}
+                        hint={false}
                         onPaxChange={v => updateBranch(i, 'pax', v)}
                         onKmChange={v  => updateBranch(i, 'kmDistance', v)}
                         onRemove={() => removeBranch(i)}
                     />
                 ))}
 
-                {/* Subsidiaries — In-House / ROT only */}
-                {isInhouse && subsidiaries.length > 0 && (
+                {/* Subsidiaries — HCC / SBL in-house only */}
+                {isInhouse && scheme !== 'slb' && subsidiaries.length > 0 && (
                     <p style={{ fontSize: '12px', fontWeight: '700', color: '#e65100', margin: '10px 0 6px' }}>
-                        {scheme === 'slb' ? 'OTHER PARTICIPATING EMPLOYERS (separate companies — public rate applies)' : 'SUBSIDIARIES (separate companies — public rate applies)'}
+                        SUBSIDIARIES (separate companies — public rate applies)
                     </p>
                 )}
-                {isInhouse && subsidiaries.map((s, i) => (
+                {isInhouse && scheme !== 'slb' && subsidiaries.map((s, i) => (
                     <ParticipantRow key={i}
                         label={s.label}
                         badge="Subsidiary"
                         badgeColor="#e65100"
                         pax={s.pax}
                         kmDistance={s.kmDistance}
-                        showKm={!isROT}
-                        hint={isROT ? false : undefined}
+                        showKm={true}
+                        hint={false}
                         onPaxChange={v => updateSubsidiary(i, 'pax', v)}
                         onKmChange={v  => updateSubsidiary(i, 'kmDistance', v)}
                         onRemove={() => removeSubsidiary(i)}
                     />
                 ))}
 
+                {/* SLB — Participating Employers */}
+                {scheme === 'slb' && isInhouse && subsidiaries.length > 0 && (
+                    <p style={{ fontSize: '12px', fontWeight: '700', color: '#6a1b9a', margin: '10px 0 6px' }}>
+                        OTHER PARTICIPATING EMPLOYERS (group rate ÷ total pax × each employer's pax)
+                    </p>
+                )}
+                {scheme === 'slb' && isInhouse && subsidiaries.map((s, i) => (
+                    <div key={i} style={{ background: '#fff', border: '1px solid #ce93d8', borderRadius: '8px', padding: '14px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span style={{ fontWeight: '700', fontSize: '13px', color: '#6a1b9a' }}>
+                                Participating Employer {i + 1}
+                                <span style={{ marginLeft: '8px', fontSize: '10px', background: '#6a1b9a', color: '#fff', padding: '2px 8px', borderRadius: '10px' }}>SLB</span>
+                            </span>
+                            <button onClick={() => removeSubsidiary(i)} style={{ background: 'none', border: '1px solid #e57373', color: '#e57373', padding: '2px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '12px' }}>Remove</button>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                            <div>
+                                <label style={lStyle}>Employer Name</label>
+                                <input type="text" style={iStyle} value={s.label} onChange={e => updateSubsidiary(i, 'label', e.target.value)} placeholder={`Employer ${i + 1}`} />
+                            </div>
+                            <div>
+                                <label style={lStyle}>HRD Corp Employer Code</label>
+                                <input type="text" style={iStyle} value={s.hrdcorpRegNo || ''} onChange={e => updateSubsidiary(i, 'hrdcorpRegNo', e.target.value)} placeholder="e.g. 12345678" />
+                            </div>
+                            <div>
+                                <label style={lStyle}>Number of Pax</label>
+                                <input type="number" min="0" style={iStyle} value={s.pax} onChange={e => updateSubsidiary(i, 'pax', e.target.value)} />
+                            </div>
+                        </div>
+                    </div>
+                ))}
+
                 {/* Add buttons */}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
-                    {trainingType !== 'elearning' && trainingType !== 'overseas' && trainingType !== 'development' && (
+                    {!isElearning && !isAnyOverseas && !isDevelopment && (
                         <button onClick={addBranch} style={{ background: '#2e7d32', color: '#fff', border: 'none', padding: '7px 18px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
                             + Add Branch
                         </button>
                     )}
-                    {isInhouse && (
+                    {isInhouse && scheme !== 'slb' && (
                         <button onClick={addSubsidiary} style={{ background: '#e65100', color: '#fff', border: 'none', padding: '7px 18px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                            {scheme === 'slb' ? '+ Add Participating Employer' : '+ Add Subsidiary'}
+                            + Add Subsidiary
+                        </button>
+                    )}
+                    {scheme === 'slb' && isInhouse && (
+                        <button onClick={addSubsidiary} style={{ background: '#6a1b9a', color: '#fff', border: 'none', padding: '7px 18px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
+                            + Add Participating Employer
                         </button>
                     )}
                 </div>
@@ -463,6 +646,14 @@ export const HRDCorpCostCalculator = () => {
             }}>
                 🧮 Calculate Eligibility
             </button>
+
+            {/* ── BLOCK ERROR ──────────────────────────────────── */}
+            {blockError && (
+                <div style={{ background: '#ffebee', border: '2px solid #e53935', borderRadius: '10px', padding: '18px 20px', marginBottom: '20px' }}>
+                    <p style={{ fontWeight: '700', color: '#b71c1c', fontSize: '14px', margin: '0 0 6px' }}>🚫 Calculation Blocked</p>
+                    <p style={{ color: '#c62828', fontSize: '13px', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.7' }}>{blockError}</p>
+                </div>
+            )}
 
             {/* ── RESULTS ──────────────────────────────────────── */}
             {result && (
@@ -523,8 +714,32 @@ export const HRDCorpCostCalculator = () => {
                             <span style={{ fontSize: '20px' }}>✈️</span>
                             <p style={{ margin: 0, color: '#0d47a1', fontWeight: '600', fontSize: '14px' }}>
                                 Air Ticket: <strong>{result.airTicketEntitled} person(s)</strong> entitled — submit actual airfare cost with ticket stub / e-Ticket / travel agent invoice.
+                                {isAnyOverseas && <span style={{ fontWeight: '400', marginLeft: '4px' }}>(50% financial assistance applies)</span>}
                             </p>
                         </div>
+                    )}
+
+                    {/* Supporting Documents */}
+                    {result.supportingDocs && (
+                    <div style={{ background: '#e8eaf6', border: '1px solid #9fa8da', borderRadius: '8px', padding: '18px', marginBottom: '16px' }}>
+                        <p style={{ fontWeight: '700', color: '#283593', marginBottom: '14px', fontSize: '13px' }}>📄 Supporting Documents Required</p>
+
+                        {/* Grant Submission */}
+                        <ol style={{ margin: 0, padding: '0 0 0 18px' }}>
+                            {result.supportingDocs.grantSubmission.map((doc, i) => (
+                                <li key={i} style={{ color: '#333', fontSize: '12px', marginBottom: '5px', lineHeight: '1.6' }}>
+                                    {doc.text}
+                                    {doc.subItems && doc.subItems.length > 0 && (
+                                        <ul style={{ margin: '4px 0 2px', padding: '0 0 0 16px', listStyle: 'none' }}>
+                                            {doc.subItems.map((sub, j) => (
+                                                <li key={j} style={{ color: '#555', fontSize: '11px', marginBottom: '2px', lineHeight: '1.5' }}>{sub}</li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </li>
+                            ))}
+                        </ol>
+                    </div>
                     )}
 
                     {/* Warnings & Notes */}
@@ -532,7 +747,7 @@ export const HRDCorpCostCalculator = () => {
                         <div style={{ background: '#fffde7', border: '1px solid #f9a825', borderRadius: '8px', padding: '16px' }}>
                             <p style={{ fontWeight: '700', color: '#f57f17', marginBottom: '8px', fontSize: '13px' }}>📌 Notes &amp; Reminders:</p>
                             {result.warnings.map((w, i) => (
-                                <p key={i} style={{ color: '#555', fontSize: '12px', margin: '4px 0' }}>{w}</p>
+                                <p key={i} style={{ color: '#555', fontSize: '12px', margin: '4px 0', whiteSpace: 'pre-line' }}>{w}</p>
                             ))}
                         </div>
                     )}

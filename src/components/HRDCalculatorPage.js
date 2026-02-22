@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { HRDCorpCostCalculator } from './HRDCorpCostCalculator';
+import milleniumLogo from '../assets/Millenium-removebg-preview.png';
+import auraLogo from '../assets/AURA-remove.png';
 
 const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfYgJEpz_b9HthuFVrAv_3Ep7q2YtXTusQlD7ZUEzvhIHXpqg/viewform?usp=dialog';
 
@@ -41,6 +43,17 @@ const HRDCalculatorPage = () => {
                 >
                     ← Back to Login
                 </a>
+            </div>
+
+            {/* Logos row — below banner */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '12px 32px'
+            }}>
+                <img src={milleniumLogo} alt="Millenium" style={{ height: '80px', objectFit: 'contain' }} />
+                <div style={{ flex: 1 }} />
+                <img src={auraLogo} alt="AURA" style={{ height: '80px', objectFit: 'contain' }} />
             </div>
 
             {/* Calculator */}
