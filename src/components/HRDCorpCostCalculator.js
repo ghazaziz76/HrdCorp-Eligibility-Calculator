@@ -1,6 +1,7 @@
 import React from 'react';
 import { calculateEligibility } from '../utils/HRDEligibilityCalculator';
 import { useACMData } from '../context/ACMDataContext';
+import { exportResultPDF } from '../utils/pdfExportWeb';
 
 // =============================================
 // HRDCORP ELIGIBILITY CALCULATOR
@@ -127,6 +128,21 @@ export const HRDCorpCostCalculator = () => {
             actualCourseFeePerPax:     parseFloat(actualCourseFee)  || 0
         }, liveRates || null, liveClaimDocs || null);
         setResult(r);
+
+        // Save to history (localStorage)
+        try {
+            const hist = JSON.parse(localStorage.getItem('hrd_calc_history') || '[]');
+            hist.unshift({
+                id: Date.now().toString(),
+                scheme, trainingType, totalPax,
+                totalClaimable: r.totalClaimable,
+                items: r.items,
+                airTicketEntitled: r.airTicketEntitled,
+                warnings: r.warnings,
+                timestamp: new Date().toISOString(),
+            });
+            localStorage.setItem('hrd_calc_history', JSON.stringify(hist.slice(0, 50)));
+        } catch {}
     };
 
     const iStyle  = { width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #ddd', fontSize: '14px', boxSizing: 'border-box' };
@@ -780,6 +796,18 @@ export const HRDCorpCostCalculator = () => {
                             ))}
                         </div>
                     )}
+
+                    {/* Export PDF Button */}
+                    <button
+                        onClick={() => exportResultPDF(result, { scheme, trainingType, totalPax })}
+                        style={{
+                            display: 'block', width: '100%', marginTop: '16px', padding: '14px',
+                            background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px',
+                            fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                        }}
+                    >
+                        📄 Export as PDF
+                    </button>
                 </div>
             )}
             </>)}

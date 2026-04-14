@@ -11,7 +11,9 @@ function App() {
         <Routes>
           <Route path="/"               element={<HRDCalculatorPage />} />
           <Route path="/hrd-calculator" element={<HRDCalculatorPage />} />
+          <Route path="/product/calculator/desktop" element={<HRDCalculatorPage />} />
           <Route path="/admin"          element={<AdminPage />} />
+          <Route path="*"               element={<HRDCalculatorPage />} />
         </Routes>
       </Router>
     </ACMDataProvider>
