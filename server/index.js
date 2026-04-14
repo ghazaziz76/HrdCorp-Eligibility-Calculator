@@ -3,7 +3,8 @@ require('dotenv').config();
 const express     = require('express');
 const cors        = require('cors');
 const path        = require('path');
-const adminRoutes = require('./routes/admin');
+const adminRoutes      = require('./routes/admin');
+const activationRoutes = require('./routes/activation');
 const { startMonitor } = require('./monitor');
 
 const app  = express();
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // ── API routes ────────────────────────────────────────────
 app.use('/api', adminRoutes);
+app.use('/api', activationRoutes);
 
 // ── Serve built React app (production) ───────────────────
 const buildPath = path.join(__dirname, '../build');
