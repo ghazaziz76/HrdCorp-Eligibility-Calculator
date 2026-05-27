@@ -46,9 +46,10 @@ export function calculateSgm({ levyBalance = '', numberOfGraduates = '', monthly
     warnings,
     supportingDocs: {
       grantSubmission: [
-        doc('A letter or certificate of higher education completion or graduation from a recognised institution.'),
-        doc('Employment or Offer Letter from the current company stating the monthly allowance.'),
-        doc('Joint declaration by employer and graduate confirming it is the graduate’s first full-time job in the formal sector (Appendix A, Employer Circular No. 1/2025).'),
+        doc('A letter or certificate of higher education completion or graduation — an official document from a recognised higher learning institution verifying the student has completed their higher-learning requirements.'),
+        doc('Employment or Offer Letter from the current company, stating the monthly allowance.'),
+        doc('If the graduate has any previous working experience, an Employment or Offer Letter from the previous company may be shared for further consideration.'),
+        doc('Joint declaration by employer and graduate confirming it is the graduate’s first full-time job in the formal sector after graduation (Appendix A, Employer Circular No. 1/2025).'),
         doc('12-month programme structure with objectives, start/end dates and learning outcomes (SGM Form Ver 1.1).'),
         doc('Proof of 12 months’ allowance payment (e.g. bank statements, pay slips). Payment vouchers will not be considered.'),
       ],
