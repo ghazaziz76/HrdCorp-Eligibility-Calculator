@@ -11,8 +11,6 @@ const EQUIPMENT_TYPES = [
   'Whiteboard',
   'Flip Chart / Flip Chart Stand',
   'Smart TV / LED Display',
-  'Desktop Computer',
-  'Laptop',
   'Tablet',
   'Document Camera / Visualizer',
   'Video Conferencing Camera',

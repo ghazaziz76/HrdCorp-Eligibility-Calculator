@@ -21,7 +21,8 @@ export function calculateAlat({ equipment = [], renovation = [] }) {
   warnings.push('IMPORTANT — the figure above is your total cost requested. Your actual ALAT eligibility for HRD Corp is capped at 50% of your levy balance as of 1 January of the application year. Only that 50% can be used for ALAT in that particular year, so your approved amount may be lower than the figure shown.');
   warnings.push('Purchases must be made AFTER grant approval and WITHIN 6 months. Purchases before approval are not claimable.');
   warnings.push('Not claimable as standalone items: labour, installation/calibration/cleaning services, delivery charges, accessories without equipment, operational software (e.g. MS Office), signage, cabinets.');
-  warnings.push('Laptops/tablets are claimable only every 2 years, and require an appointed internal trainer and a dedicated training room with an LCD projector.');
+  warnings.push('Tablets are claimable only every 2 years, and require an appointed internal trainer and a dedicated training room with an LCD projector.');
+  warnings.push('Desktop computers and laptops are NOT claimable under ALAT — apply for them under the IT (Information Technology & Computer-Aided Training) scheme instead.');
 
   return {
     items,
