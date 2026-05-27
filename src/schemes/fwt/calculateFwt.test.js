@@ -66,13 +66,13 @@ test('in-house INTERNAL allowance scales with auto groups (50 technical = 2 grou
   expect(feeOf(r, /Internal Trainer Allowance/i)).toBe(2800); // 1,400 * 1 * 2 groups
 });
 
-test('public certification: course fee as charged + daily allowance', () => {
+test('public certification: course fee is per pax × trainees + daily allowance', () => {
   const r = calculateFwt({
     subType: 'public_cert', numberOfTrainees: 2, trainingDays: 2,
     distance: 'under_100', allowanceType: 'daily', courseFee: 3000, durationType: 'less_than_month',
   });
-  // fee 3000; daily 250*2*2 = 1000 => 4,000
-  expect(r.totalClaimable).toBe(4000);
+  // fee 3000/pax * 2 = 6000; daily 250*2*2 = 1000 => 7,000
+  expect(r.totalClaimable).toBe(7000);
 });
 
 test('in-house, more than 1 month: trainer + monthly + trainer meal + consumables', () => {

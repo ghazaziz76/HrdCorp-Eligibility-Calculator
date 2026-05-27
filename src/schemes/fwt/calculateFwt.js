@@ -67,9 +67,11 @@ export function calculateFwt({
       });
     }
   } else {
-    // Public certification / general public: local course fee as charged.
-    const fee = num(courseFee);
-    if (fee > 0) items.push({ label: 'Course Fee', note: 'Local course fee, as charged', amount: fee });
+    // Public certification / general public: local course fee charged PER PARTICIPANT
+    // (ACM: public/certification fees are quoted on a per-pax basis), as charged.
+    const feePerPax = num(courseFee);
+    const fee = feePerPax * trainees;
+    if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${feePerPax.toLocaleString()}/pax × ${trainees} pax — as charged`, amount: fee });
   }
 
   if (isLess) {

@@ -143,8 +143,9 @@ export default function FwtForm() {
 
           {!isInhouse && (
             <div style={rStyle}>
-              <label style={lStyle}>Course Fee (RM, as charged)</label>
+              <label style={lStyle}>Course Fee per Pax (RM, as charged)</label>
               <input type="number" min="0" style={iStyle} value={courseFee} onChange={e => setCourseFee(e.target.value)} />
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Public courses are charged per participant — multiplied by the number of trainees.</p>
             </div>
           )}
 
