@@ -15,6 +15,15 @@ const ActivationGate = ({ children }) => {
 
     // Check if already activated on mount
     useEffect(() => {
+        // Local development bypass: skip the activation gate when running the
+        // dev server (`npm start`). Production builds (`npm run build`) — which
+        // is what deploys to the web and is wrapped into the mobile app — set
+        // NODE_ENV to 'production', so the gate stays fully active when deployed.
+        if (process.env.NODE_ENV === 'development') {
+            setActivated(true);
+            setChecking(false);
+            return;
+        }
         const token = localStorage.getItem('hrd_activation_token');
         if (token) {
             setActivated(true);
