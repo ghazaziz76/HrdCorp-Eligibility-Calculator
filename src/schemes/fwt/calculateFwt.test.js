@@ -1,24 +1,35 @@
 import { calculateFwt } from './calculateFwt';
 
-test('in-house INTERNAL trainer, less than 1 month: trainer + daily + meal allowances', () => {
+test('in-house INTERNAL trainer, less than 1 month, daily allowance (not meal)', () => {
   const r = calculateFwt({
     subType: 'inhouse', courseCategory: 'soft_skills', trainerType: 'internal',
     numberOfTrainees: 10, numberOfTrainers: 1, trainingDays: 3,
-    dailyDuration: 'full_day', distance: 'under_100', durationType: 'less_than_month',
+    dailyDuration: 'full_day', distance: 'under_100', allowanceType: 'daily', durationType: 'less_than_month',
   });
-  // trainer 1400*3 = 4200; daily 250*10*3 = 7500; meal 100*10*3 = 3000 => 14,700
-  expect(r.totalClaimable).toBe(14700);
-  expect(r.items.reduce((s, i) => s + i.amount, 0)).toBe(14700);
+  // trainer 1400*3 = 4200; daily 250*10*3 = 7500 (no meal) => 11,700
+  expect(r.totalClaimable).toBe(11700);
+  expect(r.items.some(i => /Meal Allowance/i.test(i.label))).toBe(false);
+});
+
+test('less than 1 month, meal allowance chosen instead of daily', () => {
+  const r = calculateFwt({
+    subType: 'inhouse', trainerType: 'internal',
+    numberOfTrainees: 10, numberOfTrainers: 1, trainingDays: 3,
+    dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month',
+  });
+  // trainer 1400*3 = 4200; meal 100*10*3 = 3000 (no daily) => 7,200
+  expect(r.totalClaimable).toBe(7200);
+  expect(r.items.some(i => /Trainee Daily Allowance/i.test(i.label))).toBe(false);
 });
 
 test('in-house EXTERNAL trainer: course fee instead of trainer allowance', () => {
   const r = calculateFwt({
     subType: 'inhouse', trainerType: 'external',
-    numberOfTrainees: 10, trainingDays: 3, distance: 'under_100',
+    numberOfTrainees: 10, trainingDays: 3, distance: 'under_100', allowanceType: 'daily',
     courseFee: 9000, durationType: 'less_than_month',
   });
-  // no trainer allowance; fee 9000; daily 250*10*3 = 7500; meal 100*10*3 = 3000 => 19,500
-  expect(r.totalClaimable).toBe(19500);
+  // no trainer allowance; fee 9000; daily 250*10*3 = 7500 => 16,500
+  expect(r.totalClaimable).toBe(16500);
   expect(r.items.some(i => /Internal Trainer Allowance/i.test(i.label))).toBe(false);
   expect(r.items.some(i => /Course Fee/i.test(i.label))).toBe(true);
 });
@@ -38,8 +49,8 @@ test('public certification: course fee + daily + meal (no trainer allowance)', (
     subType: 'public_cert', numberOfTrainees: 2, trainingDays: 2,
     distance: 'under_100', courseFee: 3000, durationType: 'less_than_month',
   });
-  // fee 3000; daily 250*2*2 = 1000; meal 100*2*2 = 400 => 4,400; no trainer line
-  expect(r.totalClaimable).toBe(4400);
+  // fee 3000; daily 250*2*2 = 1000 (no meal) => 4,000; no trainer line
+  expect(r.totalClaimable).toBe(4000);
   expect(r.items.some(i => /Trainer Allowance/i.test(i.label))).toBe(false);
 });
 

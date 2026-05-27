@@ -14,6 +14,7 @@ export function calculateFwt({
   trainingDays = '',
   dailyDuration = 'full_day',   // in-house internal trainer allowance: 'full_day' (1,400) | 'half_day' (800)
   distance = 'under_100',       // <1 month trainee daily allowance: under_100 (250) | over_100 (500)
+  allowanceType = 'daily',      // <1 month: 'daily' (distance-based) OR 'meal' (RM100/day) — not both
   courseFee = '',               // external training-provider course fee
   durationType = 'less_than_month', // 'less_than_month' | 'more_than_month'
   months = '',
@@ -53,19 +54,23 @@ export function calculateFwt({
   }
 
   if (isLess) {
-    // Short programme: daily trainee allowance + meal allowance.
+    // Short programme: EITHER the distance-based trainee daily allowance
+    // OR the meal allowance — not both (employer chooses).
     if (days > 0 && trainees > 0) {
-      const dRate = distance === 'over_100' ? 500 : 250;
-      items.push({
-        label: 'Trainee Daily Allowance',
-        note: `RM ${dRate}/day × ${trainees} pax × ${days} day(s) (or actual paid, whichever is lower)`,
-        amount: dRate * trainees * days,
-      });
-      items.push({
-        label: 'Meal Allowance',
-        note: `RM 100/day × ${trainees} pax × ${days} day(s)`,
-        amount: 100 * trainees * days,
-      });
+      if (allowanceType === 'meal') {
+        items.push({
+          label: 'Meal Allowance',
+          note: `RM 100/day × ${trainees} pax × ${days} day(s)`,
+          amount: 100 * trainees * days,
+        });
+      } else {
+        const dRate = distance === 'over_100' ? 500 : 250;
+        items.push({
+          label: 'Trainee Daily Allowance',
+          note: `RM ${dRate}/day × ${trainees} pax × ${days} day(s) (or actual paid, whichever is lower)`,
+          amount: dRate * trainees * days,
+        });
+      }
     }
   } else {
     // Programme longer than 1 month: monthly allowance paid by employer.

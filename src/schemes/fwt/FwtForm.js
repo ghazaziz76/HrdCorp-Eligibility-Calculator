@@ -8,7 +8,7 @@ const FWT_NOTES = [
   'Each training session must be at least 4 hours. Maximum training period is 1 year.',
   'In-house: minimum 2 trainees; maximum 25 (technical) or 50 (soft skills) PER trainer/group — e.g. 50 technical trainees require 2 trainers. Public certification: minimum 1, no maximum. General public: minimum 1, maximum 9.',
   'In-house internal trainer allowance: RM1,400/full day or RM800/half day per group (full day capped at 7 hours). Training-provider course fee follows the ACM and is prorated if fewer than 5 trainees.',
-  'Short programmes (under 1 month): trainee daily allowance (RM250/day under 100km, RM500/day 100km+, or actual paid — whichever is lower) plus meal allowance RM100/day per trainee.',
+  'Short programmes (under 1 month): claim EITHER the trainee daily allowance (RM250/day under 100km, RM500/day 100km+, or actual paid — whichever is lower) OR the meal allowance (RM100/day per trainee) — not both.',
   'Longer programmes (over 1 month): trainees’ monthly allowance is paid by the employer. The salary offered on employment must be at least the monthly allowance paid during training; the claim is based on whichever is lower.',
   'Employers must have no legal issues with HRD Corp to apply.',
 ];
@@ -28,6 +28,7 @@ export default function FwtForm() {
   const [trainingDays, setTrainingDays] = useState('');
   const [dailyDuration, setDailyDuration] = useState('full_day');
   const [distance, setDistance] = useState('under_100');
+  const [allowanceType, setAllowanceType] = useState('daily');
   const [courseFee, setCourseFee] = useState('');
   const [durationType, setDurationType] = useState('less_than_month');
   const [months, setMonths] = useState('');
@@ -41,7 +42,7 @@ export default function FwtForm() {
 
   const calculate = () => setResult(calculateFwt({
     subType, courseCategory, trainerType, numberOfTrainees, numberOfTrainers, trainingDays,
-    dailyDuration, distance, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost,
+    dailyDuration, distance, allowanceType, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost,
   }));
 
   return (
@@ -130,6 +131,16 @@ export default function FwtForm() {
           )}
 
           {isLess && (
+            <div style={rStyle}>
+              <label style={lStyle}>Trainee Allowance Type</label>
+              <select style={iStyle} value={allowanceType} onChange={e => setAllowanceType(e.target.value)}>
+                <option value="daily">Daily Allowance (distance-based)</option>
+                <option value="meal">Meal Allowance (RM100/day/pax)</option>
+              </select>
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Claim either the daily allowance or the meal allowance — not both.</p>
+            </div>
+          )}
+          {isLess && allowanceType === 'daily' && (
             <div style={rStyle}>
               <label style={lStyle}>Distance to Venue</label>
               <select style={iStyle} value={distance} onChange={e => setDistance(e.target.value)}>
