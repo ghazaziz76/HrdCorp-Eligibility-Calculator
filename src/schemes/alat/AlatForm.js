@@ -23,6 +23,8 @@ const EQUIPMENT_TYPES = [
   'UPS (Uninterruptible Power Supply)',
   'Laptop Charging Trolley / Cart',
   'Printer / Scanner',
+  'Training Tables',
+  'Training Chairs',
   'Other',
 ];
 
