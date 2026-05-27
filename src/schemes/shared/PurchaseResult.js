@@ -52,12 +52,22 @@ export default function PurchaseResult({ schemeId, schemeLabel, result }) {
 
       {result.supportingDocs && (
         <div style={{ background: '#e8eaf6', border: '1px solid #9fa8da', borderRadius: '8px', padding: '18px', marginBottom: '16px' }}>
-          <p style={{ fontWeight: '700', color: '#283593', marginBottom: '14px', fontSize: '13px' }}>Supporting Documents Required (Grant Submission)</p>
-          <ol style={{ margin: 0, padding: '0 0 0 18px' }}>
+          <p style={{ fontWeight: '700', color: '#283593', marginBottom: '10px', fontSize: '13px' }}>Supporting Documents Required — Grant Submission</p>
+          <ol style={{ margin: '0 0 12px', padding: '0 0 0 18px' }}>
             {result.supportingDocs.grantSubmission.map((doc, i) => (
               <li key={i} style={{ color: '#333', fontSize: '12px', marginBottom: '5px', lineHeight: '1.6' }}>{doc.text}</li>
             ))}
           </ol>
+          {result.supportingDocs.claimSubmission && result.supportingDocs.claimSubmission.length > 0 && (
+            <>
+              <p style={{ fontWeight: '700', color: '#283593', margin: '0 0 10px', fontSize: '13px' }}>Supporting Documents Required — Claim Submission</p>
+              <ol style={{ margin: 0, padding: '0 0 0 18px' }}>
+                {result.supportingDocs.claimSubmission.map((doc, i) => (
+                  <li key={i} style={{ color: '#333', fontSize: '12px', marginBottom: '5px', lineHeight: '1.6' }}>{doc.text}</li>
+                ))}
+              </ol>
+            </>
+          )}
         </div>
       )}
 

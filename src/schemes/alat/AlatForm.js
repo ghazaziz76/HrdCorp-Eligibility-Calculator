@@ -11,6 +11,8 @@ const EQUIPMENT_TYPES = [
   'Whiteboard',
   'Flip Chart / Flip Chart Stand',
   'Smart TV / LED Display',
+  'Laptop',
+  'Tablet',
   'Document Camera / Visualizer',
   'Video Conferencing Camera',
   'PA / Sound System',
@@ -26,6 +28,19 @@ const EQUIPMENT_TYPES = [
   'Training Tables',
   'Training Chairs',
   'Other',
+];
+
+// Equipment eligibility rules (ACM Guide Jan 2026, section D).
+const EQUIPMENT_NOTES = [
+  'The purchase of training equipment is no longer limited to the previous HRD Corp list. Any non-training-related equipment or items, including software, may not be funded.',
+  'The equipment must be used solely for training purposes and be relevant to the employer’s nature of business.',
+  'Training equipment must be placed in the training venue.',
+  'The equipment and/or renovation of the training room can be done at an industry training location (can be placed outside of the training room).',
+  'The location of the equipment should be disclosed when applying for the grant.',
+  'Any changes in the equipment’s location — disposal, relocation or loss — must be disclosed to and approved by HRD Corp prior to the changes.',
+  'The location and relocation of business premises (HQ and branches) must be declared and updated with HRD Corp prior to the grant application.',
+  'Any damage or disposal of training equipment must be reported to HRD Corp.',
+  'Employers may purchase laptops or tablets every two years, provided an internal trainer is appointed and a dedicated training room with an LCD projector is available for the trainer to develop training modules.',
 ];
 
 const RENO_TYPES = [
@@ -66,6 +81,16 @@ export default function AlatForm() {
             { key: 'cost', label: 'Cost (RM)', type: 'number' },
           ]}
           addLabel="+ Add Equipment" />
+
+        <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: '8px', padding: '14px 18px', marginBottom: '20px' }}>
+          <p style={{ fontWeight: '700', fontSize: '12px', color: '#e65100', margin: '0 0 8px' }}>Training Equipment — Rules &amp; Conditions</p>
+          <ul style={{ margin: 0, padding: '0 0 0 18px' }}>
+            {EQUIPMENT_NOTES.map((n, i) => (
+              <li key={i} style={{ fontSize: '12px', color: '#555', marginBottom: '5px', lineHeight: '1.6' }}>{n}</li>
+            ))}
+          </ul>
+        </div>
+
         <CostList title="Room Setup / Renovation" rows={renovation} onChange={setRenovation} accent="#e65100"
           fields={[{ key: 'type', label: 'Type', type: 'select', options: RENO_TYPES }, { key: 'cost', label: 'Cost (RM)', type: 'number' }]}
           addLabel="+ Add Renovation Item" />
