@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { HRDCorpCostCalculator } from './HRDCorpCostCalculator';
 import AlatForm from '../schemes/alat/AlatForm';
 import ItForm from '../schemes/it/ItForm';
-import CbtForm from '../schemes/cbt/CbtForm';
 
 const FAMILIES = [
   { id: 'training', label: 'Training Course Schemes (HCC / SBL / SLB)' },
   { id: 'alat', label: 'ALAT' },
   { id: 'it', label: 'IT' },
-  { id: 'cbt', label: 'CBT' },
 ];
 
 export default function CalculatorTab() {
@@ -30,7 +28,6 @@ export default function CalculatorTab() {
       {family === 'training' && <HRDCorpCostCalculator />}
       {family === 'alat' && <AlatForm />}
       {family === 'it' && <ItForm />}
-      {family === 'cbt' && <CbtForm />}
     </div>
   );
 }
