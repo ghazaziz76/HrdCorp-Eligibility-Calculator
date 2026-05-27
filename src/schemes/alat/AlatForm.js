@@ -11,7 +11,6 @@ const EQUIPMENT_TYPES = [
   'Whiteboard',
   'Flip Chart / Flip Chart Stand',
   'Smart TV / LED Display',
-  'Tablet',
   'Document Camera / Visualizer',
   'Video Conferencing Camera',
   'PA / Sound System',
@@ -24,7 +23,6 @@ const EQUIPMENT_TYPES = [
   'UPS (Uninterruptible Power Supply)',
   'Laptop Charging Trolley / Cart',
   'Printer / Scanner',
-  'Training Simulator / Equipment',
   'Other',
 ];
 
