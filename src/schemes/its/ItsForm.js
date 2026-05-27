@@ -18,10 +18,10 @@ export default function ItsForm() {
   const [monthlyAllowance, setMonthlyAllowance] = useState('');
   const [months, setMonths] = useState('');
   const [ppePerIntern, setPpePerIntern] = useState('');
-  const [insuranceTotal, setInsuranceTotal] = useState('');
+  const [insurancePerIntern, setInsurancePerIntern] = useState('');
   const [result, setResult] = useState(null);
 
-  const calculate = () => setResult(calculateIts({ levyBalance, numberOfInterns, monthlyAllowance, months, ppePerIntern, insuranceTotal }));
+  const calculate = () => setResult(calculateIts({ levyBalance, numberOfInterns, monthlyAllowance, months, ppePerIntern, insurancePerIntern }));
 
   return (
     <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
@@ -59,8 +59,8 @@ export default function ItsForm() {
             <input type="number" min="0" style={iStyle} value={ppePerIntern} onChange={e => setPpePerIntern(e.target.value)} />
           </div>
           <div style={rStyle}>
-            <label style={lStyle}>Insurance — total (RM, optional)</label>
-            <input type="number" min="0" style={iStyle} value={insuranceTotal} onChange={e => setInsuranceTotal(e.target.value)} />
+            <label style={lStyle}>Insurance per Intern (RM, optional)</label>
+            <input type="number" min="0" style={iStyle} value={insurancePerIntern} onChange={e => setInsurancePerIntern(e.target.value)} />
           </div>
         </div>
       </div>

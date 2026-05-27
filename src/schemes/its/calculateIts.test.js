@@ -5,15 +5,15 @@ const base = {
   monthlyAllowance: 1000,
   months: 6,
   ppePerIntern: 200,
-  insuranceTotal: 500,
+  insurancePerIntern: 500,
 };
 
-test('totals allowance + PPE + insurance (no levy entered)', () => {
+test('totals allowance + PPE + insurance, all per-intern (no levy entered)', () => {
   const r = calculateIts(base);
-  // allowance 1000*6*2 = 12000, ppe 200*2 = 400, insurance 500 => 12900
-  expect(r.totalRequested).toBe(12900);
-  expect(r.totalClaimable).toBe(12900);
-  expect(r.items.reduce((s, i) => s + i.amount, 0)).toBe(12900);
+  // allowance 1000*6*2 = 12000, ppe 200*2 = 400, insurance 500*2 = 1000 => 13400
+  expect(r.totalRequested).toBe(13400);
+  expect(r.totalClaimable).toBe(13400);
+  expect(r.items.reduce((s, i) => s + i.amount, 0)).toBe(13400);
 });
 
 test('caps at 50% of ball-park levy and tells how much can be applied for', () => {

@@ -3,16 +3,17 @@
 const num = (v) => parseFloat(v) || 0;
 const doc = (text) => ({ text });
 
-export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAllowance = '', months = '', ppePerIntern = '', insuranceTotal = '' }) {
+export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAllowance = '', months = '', ppePerIntern = '', insurancePerIntern = '' }) {
   const interns = Math.max(0, parseInt(numberOfInterns, 10) || 0);
   const mAllow = num(monthlyAllowance);
   const mo = num(months);
   const ppe = num(ppePerIntern);
-  const ins = num(insuranceTotal);
+  const insPer = num(insurancePerIntern);
 
   const allowanceTotal = mAllow * mo * interns;
   const ppeTotal = ppe * interns;
-  const totalRequested = allowanceTotal + ppeTotal + ins;
+  const insTotal = insPer * interns;
+  const totalRequested = allowanceTotal + ppeTotal + insTotal;
 
   const levy = num(levyBalance);
   const hasLevy = levy > 0;
@@ -23,7 +24,7 @@ export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAl
   const items = [];
   if (allowanceTotal > 0) items.push({ label: 'Monthly Allowance', note: `RM ${mAllow.toLocaleString()}/mth × ${mo} mth × ${interns} intern(s)`, amount: allowanceTotal });
   if (ppeTotal > 0) items.push({ label: 'PPE (one set per intern)', note: `RM ${ppe.toLocaleString()} × ${interns} intern(s)`, amount: ppeTotal });
-  if (ins > 0) items.push({ label: 'Insurance', note: 'As per premium', amount: ins });
+  if (insTotal > 0) items.push({ label: 'Insurance', note: `RM ${insPer.toLocaleString()}/intern × ${interns} intern(s) — as per premium`, amount: insTotal });
   if (exceeds) items.push({ label: 'Limited to 50% of levy balance (ball-park)', note: `50% of RM ${levy.toLocaleString()}`, amount: cap - totalRequested });
 
   const warnings = [];
