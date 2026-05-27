@@ -39,6 +39,7 @@ export default function FwtForm() {
 
   const isInhouse = subType === 'inhouse';
   const isInternal = isInhouse && trainerType === 'internal';
+  const isGeneralPublic = subType === 'general_public';
   const isLess = durationType === 'less_than_month';
   const trainees = parseInt(numberOfTrainees, 10) || 0;
   const groups = isInhouse ? groupsFor(trainees, courseCategory) : 0;
@@ -104,12 +105,12 @@ export default function FwtForm() {
             </div>
           )}
 
-          {isInhouse && (
+          {(isInhouse || isGeneralPublic) && (
             <div style={rStyle}>
               <label style={lStyle}>Session Length</label>
               <select style={iStyle} value={dailyDuration} onChange={e => setDailyDuration(e.target.value)}>
-                <option value="full_day">Full Day (7 hrs){isInternal ? ' — RM1,400/group' : ' — RM10,500/group'}</option>
-                <option value="half_day">Half Day (≤4 hrs){isInternal ? ' — RM800/group' : ' — RM6,000/group'}</option>
+                <option value="full_day">Full Day (7 hrs){isGeneralPublic ? ' — RM1,750/pax' : isInternal ? ' — RM1,400/group' : ' — RM10,500/group'}</option>
+                <option value="half_day">Half Day (≤4 hrs){isGeneralPublic ? ' — RM1,000/pax' : isInternal ? ' — RM800/group' : ' — RM6,000/group'}</option>
               </select>
             </div>
           )}
@@ -141,11 +142,18 @@ export default function FwtForm() {
             {isLess && <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Under 1 month → capped at 30 training days. For longer, switch to “More than 1 month”.</p>}
           </div>
 
-          {!isInhouse && (
+          {subType === 'public_cert' && (
             <div style={rStyle}>
               <label style={lStyle}>Course Fee per Pax (RM, as charged)</label>
               <input type="number" min="0" style={iStyle} value={courseFee} onChange={e => setCourseFee(e.target.value)} />
-              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Public courses are charged per participant — multiplied by the number of trainees.</p>
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Certification courses are charged per participant — multiplied by the number of trainees.</p>
+            </div>
+          )}
+          {isGeneralPublic && (
+            <div style={rStyle}>
+              <label style={lStyle}>Course Fee</label>
+              <input type="text" style={readOnlyStyle} value={`RM ${dailyDuration === 'half_day' ? '1,000' : '1,750'}/pax/${dailyDuration === 'half_day' ? 'half-day' : 'day'} (ACM rate)`} readOnly tabIndex={-1} />
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>General public courses use the ACM rate × trainees × days — computed automatically.</p>
             </div>
           )}
 

@@ -66,9 +66,13 @@ export function calculateFwt({
         amount: fee,
       });
     }
+  } else if (subType === 'general_public') {
+    // General public course: ACM general-public rate, per participant per day.
+    const rate = fullDay ? 1750 : 1000;
+    const fee = rate * days * trainees;
+    if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${rate.toLocaleString()}/pax/${fullDay ? 'day' : 'half-day'} × ${trainees} pax × ${days} day(s)`, amount: fee });
   } else {
-    // Public certification / general public: local course fee charged PER PARTICIPANT
-    // (ACM: public/certification fees are quoted on a per-pax basis), as charged.
+    // Public certification: certification course fee charged per participant, as charged.
     const feePerPax = num(courseFee);
     const fee = feePerPax * trainees;
     if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${feePerPax.toLocaleString()}/pax × ${trainees} pax — as charged`, amount: fee });

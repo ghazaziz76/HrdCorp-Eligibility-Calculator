@@ -85,8 +85,27 @@ test('in-house, more than 1 month: trainer + monthly + trainer meal + consumable
   expect(r.totalClaimable).toBe(42500);
 });
 
+test('general public: ACM RM1,750/pax/day course fee + daily allowance', () => {
+  const r = calculateFwt({
+    subType: 'general_public', numberOfTrainees: 5, trainingDays: 3,
+    dailyDuration: 'full_day', distance: 'under_100', allowanceType: 'daily', durationType: 'less_than_month',
+  });
+  // fee 1750*3*5 = 26,250; daily 250*5*3 = 3,750 => 30,000
+  expect(feeOf(r, /Course Fee/i)).toBe(26250);
+  expect(r.totalClaimable).toBe(30000);
+});
+
+test('general public half-day uses RM1,000/pax', () => {
+  const r = calculateFwt({
+    subType: 'general_public', numberOfTrainees: 4, trainingDays: 2,
+    dailyDuration: 'half_day', allowanceType: 'meal', durationType: 'less_than_month',
+  });
+  // fee 1000*2*4 = 8,000
+  expect(feeOf(r, /Course Fee/i)).toBe(8000);
+});
+
 test('general public over 9 trainees triggers a warning', () => {
-  const r = calculateFwt({ subType: 'general_public', numberOfTrainees: 12, courseFee: 1000, trainingDays: 1, allowanceType: 'meal', durationType: 'less_than_month' });
+  const r = calculateFwt({ subType: 'general_public', numberOfTrainees: 12, trainingDays: 1, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month' });
   expect(r.warnings.some(w => /maximum of 9 trainees/i.test(w))).toBe(true);
 });
 
