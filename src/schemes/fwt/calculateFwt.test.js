@@ -1,14 +1,26 @@
 import { calculateFwt } from './calculateFwt';
 
-test('in-house, less than 1 month: trainer + daily + meal allowances', () => {
+test('in-house INTERNAL trainer, less than 1 month: trainer + daily + meal allowances', () => {
   const r = calculateFwt({
-    subType: 'inhouse', courseCategory: 'soft_skills',
+    subType: 'inhouse', courseCategory: 'soft_skills', trainerType: 'internal',
     numberOfTrainees: 10, numberOfTrainers: 1, trainingDays: 3,
     dailyDuration: 'full_day', distance: 'under_100', durationType: 'less_than_month',
   });
   // trainer 1400*3 = 4200; daily 250*10*3 = 7500; meal 100*10*3 = 3000 => 14,700
   expect(r.totalClaimable).toBe(14700);
   expect(r.items.reduce((s, i) => s + i.amount, 0)).toBe(14700);
+});
+
+test('in-house EXTERNAL trainer: course fee instead of trainer allowance', () => {
+  const r = calculateFwt({
+    subType: 'inhouse', trainerType: 'external',
+    numberOfTrainees: 10, trainingDays: 3, distance: 'under_100',
+    courseFee: 9000, durationType: 'less_than_month',
+  });
+  // no trainer allowance; fee 9000; daily 250*10*3 = 7500; meal 100*10*3 = 3000 => 19,500
+  expect(r.totalClaimable).toBe(19500);
+  expect(r.items.some(i => /Internal Trainer Allowance/i.test(i.label))).toBe(false);
+  expect(r.items.some(i => /Course Fee/i.test(i.label))).toBe(true);
 });
 
 test('in-house, more than 1 month: trainer + monthly + trainer meal + consumables', () => {

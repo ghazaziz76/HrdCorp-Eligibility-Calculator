@@ -22,6 +22,7 @@ const SUBTYPES = [
 export default function FwtForm() {
   const [subType, setSubType] = useState('inhouse');
   const [courseCategory, setCourseCategory] = useState('soft_skills');
+  const [trainerType, setTrainerType] = useState('internal');
   const [numberOfTrainees, setNumberOfTrainees] = useState('');
   const [numberOfTrainers, setNumberOfTrainers] = useState('1');
   const [trainingDays, setTrainingDays] = useState('');
@@ -35,10 +36,11 @@ export default function FwtForm() {
   const [result, setResult] = useState(null);
 
   const isInhouse = subType === 'inhouse';
+  const isInternal = isInhouse && trainerType === 'internal';
   const isLess = durationType === 'less_than_month';
 
   const calculate = () => setResult(calculateFwt({
-    subType, courseCategory, numberOfTrainees, numberOfTrainers, trainingDays,
+    subType, courseCategory, trainerType, numberOfTrainees, numberOfTrainers, trainingDays,
     dailyDuration, distance, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost,
   }));
 
@@ -73,6 +75,16 @@ export default function FwtForm() {
             </div>
           )}
 
+          {isInhouse && (
+            <div style={rStyle}>
+              <label style={lStyle}>Trainer Type</label>
+              <select style={iStyle} value={trainerType} onChange={e => { setTrainerType(e.target.value); setResult(null); }}>
+                <option value="internal">Internal Trainer (trainer allowance)</option>
+                <option value="external">External Trainer / Training Provider (course fee)</option>
+              </select>
+            </div>
+          )}
+
           <div style={rStyle}>
             <label style={lStyle}>Number of Trainees</label>
             <input type="number" min="0" style={iStyle} value={numberOfTrainees} onChange={e => setNumberOfTrainees(e.target.value)} />
@@ -86,7 +98,7 @@ export default function FwtForm() {
             </select>
           </div>
 
-          {isInhouse && (
+          {isInternal && (
             <>
               <div style={rStyle}>
                 <label style={lStyle}>Number of Trainers (groups)</label>
@@ -107,15 +119,9 @@ export default function FwtForm() {
             <input type="number" min="0" style={iStyle} value={trainingDays} onChange={e => setTrainingDays(e.target.value)} />
           </div>
 
-          {!isInhouse && (
+          {!isInternal && (
             <div style={rStyle}>
-              <label style={lStyle}>Course Fee (RM, as charged)</label>
-              <input type="number" min="0" style={iStyle} value={courseFee} onChange={e => setCourseFee(e.target.value)} />
-            </div>
-          )}
-          {isInhouse && (
-            <div style={rStyle}>
-              <label style={lStyle}>Training-Provider Course Fee (RM, optional)</label>
+              <label style={lStyle}>{isInhouse ? 'Training-Provider Course Fee (RM)' : 'Course Fee (RM, as charged)'}</label>
               <input type="number" min="0" style={iStyle} value={courseFee} onChange={e => setCourseFee(e.target.value)} />
             </div>
           )}

@@ -8,10 +8,11 @@ const doc = (text) => ({ text });
 export function calculateFwt({
   subType = 'inhouse',          // 'inhouse' | 'public_cert' | 'general_public'
   courseCategory = 'soft_skills', // in-house: 'technical' (max 25) | 'soft_skills' (max 50)
+  trainerType = 'internal',     // in-house: 'internal' (trainer allowance) | 'external' (course fee)
   numberOfTrainees = '',
-  numberOfTrainers = '1',       // in-house: groups for trainer allowance
+  numberOfTrainers = '1',       // in-house internal: groups for trainer allowance
   trainingDays = '',
-  dailyDuration = 'full_day',   // in-house trainer allowance: 'full_day' (1,400) | 'half_day' (800)
+  dailyDuration = 'full_day',   // in-house internal trainer allowance: 'full_day' (1,400) | 'half_day' (800)
   distance = 'under_100',       // <1 month trainee daily allowance: under_100 (250) | over_100 (500)
   courseFee = '',               // external training-provider course fee
   durationType = 'less_than_month', // 'less_than_month' | 'more_than_month'
@@ -20,6 +21,7 @@ export function calculateFwt({
   consumableCost = '',
 } = {}) {
   const isInhouse = subType === 'inhouse';
+  const isInternal = isInhouse && trainerType === 'internal';
   const isLess = durationType !== 'more_than_month';
   const trainees = Math.max(0, parseInt(numberOfTrainees, 10) || 0);
   const trainers = Math.max(1, parseInt(numberOfTrainers, 10) || 1);
@@ -27,8 +29,9 @@ export function calculateFwt({
 
   const items = [];
 
-  // In-house internal trainer allowance (per group, per day).
-  if (isInhouse) {
+  // Trainer cost: in-house INTERNAL trainer → trainer allowance.
+  // In-house EXTERNAL trainer (or any public course) → training-provider course fee.
+  if (isInternal) {
     const rate = dailyDuration === 'half_day' ? 800 : 1400;
     const trainerAllow = rate * days * trainers;
     if (trainerAllow > 0) {
@@ -38,16 +41,15 @@ export function calculateFwt({
         amount: trainerAllow,
       });
     }
-  }
-
-  // Course fee (external training provider) — all sub-types.
-  const fee = num(courseFee);
-  if (fee > 0) {
-    items.push({
-      label: 'Course Fee',
-      note: isInhouse ? 'Per ACM (prorated if fewer than 5 trainees)' : 'Local course fee, as charged',
-      amount: fee,
-    });
+  } else {
+    const fee = num(courseFee);
+    if (fee > 0) {
+      items.push({
+        label: 'Course Fee',
+        note: isInhouse ? 'Per ACM (prorated if fewer than 5 trainees)' : 'Local course fee, as charged',
+        amount: fee,
+      });
+    }
   }
 
   if (isLess) {
@@ -76,14 +78,14 @@ export function calculateFwt({
         amount: mAllow * mo * trainees,
       });
     }
+    if (isInternal && days > 0) {
+      items.push({
+        label: 'Internal Trainer Meal Allowance',
+        note: `RM 100/day × ${days} day(s) × ${trainers} trainer(s)`,
+        amount: 100 * days * trainers,
+      });
+    }
     if (isInhouse) {
-      if (days > 0) {
-        items.push({
-          label: 'Trainer Meal Allowance',
-          note: `RM 100/day × ${days} day(s) × ${trainers} trainer(s)`,
-          amount: 100 * days * trainers,
-        });
-      }
       const cons = num(consumableCost);
       if (cons > 0) items.push({ label: 'Consumable Training Materials', note: 'As claimed', amount: cons });
     }
