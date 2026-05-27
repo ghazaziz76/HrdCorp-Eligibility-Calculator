@@ -4,12 +4,14 @@ import AlatForm from '../schemes/alat/AlatForm';
 import ItForm from '../schemes/it/ItForm';
 import ItsForm from '../schemes/its/ItsForm';
 import SgmForm from '../schemes/sgm/SgmForm';
+import FwtForm from '../schemes/fwt/FwtForm';
 
 const FAMILIES = [
   { id: 'training', label: 'Training Course Schemes (HCC / SBL / SLB)' },
   { id: 'alat', label: 'ALAT' },
   { id: 'it', label: 'IT' },
   { id: 'its', label: 'ITS' },
+  { id: 'fwt', label: 'FWT' },
   { id: 'sgm', label: 'SGM' },
 ];
 
@@ -33,6 +35,7 @@ export default function CalculatorTab() {
       {family === 'alat' && <AlatForm />}
       {family === 'it' && <ItForm />}
       {family === 'its' && <ItsForm />}
+      {family === 'fwt' && <FwtForm />}
       {family === 'sgm' && <SgmForm />}
     </div>
   );
