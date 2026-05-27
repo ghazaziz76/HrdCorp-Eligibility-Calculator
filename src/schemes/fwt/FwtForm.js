@@ -116,7 +116,13 @@ export default function FwtForm() {
 
           <div style={rStyle}>
             <label style={lStyle}>Programme Length</label>
-            <select style={iStyle} value={durationType} onChange={e => { setDurationType(e.target.value); setResult(null); }}>
+            <select style={iStyle} value={durationType} onChange={e => {
+              const v = e.target.value;
+              setDurationType(v);
+              // Switching to "less than 1 month" clamps an out-of-range day count.
+              if (v === 'less_than_month' && (parseInt(trainingDays, 10) || 0) > 30) setTrainingDays('30');
+              setResult(null);
+            }}>
               <option value="less_than_month">Less than 1 month</option>
               <option value="more_than_month">More than 1 month</option>
             </select>
@@ -125,8 +131,14 @@ export default function FwtForm() {
 
           <div style={rStyle}>
             <label style={lStyle}>Training Days</label>
-            <input type="number" min="0" max={isLess ? 30 : undefined} style={iStyle} value={trainingDays} onChange={e => setTrainingDays(e.target.value)} />
-            {isLess && <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Under 1 month → max 30 training days. For longer, switch to “More than 1 month”.</p>}
+            <input type="number" min="0" max={isLess ? 30 : undefined} style={iStyle} value={trainingDays}
+              onChange={e => {
+                const v = e.target.value;
+                // For "less than 1 month", hard-cap at 30 — cannot enter 45.
+                if (isLess && (parseInt(v, 10) || 0) > 30) { setTrainingDays('30'); return; }
+                setTrainingDays(v);
+              }} />
+            {isLess && <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Under 1 month → capped at 30 training days. For longer, switch to “More than 1 month”.</p>}
           </div>
 
           {!isInhouse && (
