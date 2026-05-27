@@ -48,9 +48,17 @@ test('general public over 9 trainees triggers a warning', () => {
   expect(r.warnings.some(w => /maximum of 9 trainees/i.test(w))).toBe(true);
 });
 
-test('in-house technical over 25 trainees triggers a warning', () => {
+test('in-house technical: 30 trainees with 1 trainer warns (max 25/trainer)', () => {
   const r = calculateFwt({ subType: 'inhouse', courseCategory: 'technical', numberOfTrainees: 30, numberOfTrainers: 1, trainingDays: 1, dailyDuration: 'full_day', durationType: 'less_than_month' });
-  expect(r.warnings.some(w => /maximum of 25 trainees/i.test(w))).toBe(true);
+  expect(r.warnings.some(w => /25 trainees per group\/trainer/i.test(w))).toBe(true);
+});
+
+test('in-house cap scales with trainers: 50 technical with 2 trainers is OK, 1 trainer warns', () => {
+  const ok = calculateFwt({ subType: 'inhouse', courseCategory: 'technical', numberOfTrainees: 50, numberOfTrainers: 2, trainingDays: 1, dailyDuration: 'full_day', durationType: 'less_than_month' });
+  expect(ok.warnings.some(w => /per group\/trainer/i.test(w))).toBe(false);
+
+  const tooFew = calculateFwt({ subType: 'inhouse', courseCategory: 'technical', numberOfTrainees: 50, numberOfTrainers: 1, trainingDays: 1, dailyDuration: 'full_day', durationType: 'less_than_month' });
+  expect(tooFew.warnings.some(w => /maximum is 25/i.test(w))).toBe(true);
 });
 
 test('empty input -> zero with guidance warning + supporting docs', () => {

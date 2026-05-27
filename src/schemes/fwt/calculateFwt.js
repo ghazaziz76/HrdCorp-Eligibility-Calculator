@@ -98,8 +98,9 @@ export function calculateFwt({
 
   // Sub-type pax rules.
   if (isInhouse) {
-    const max = courseCategory === 'technical' ? 25 : 50;
-    if (trainees > max) warnings.push(`In-house FWT allows a maximum of ${max} trainees for ${courseCategory === 'technical' ? 'technical' : 'soft skills'} courses. You entered ${trainees}.`);
+    const perGroup = courseCategory === 'technical' ? 25 : 50;
+    const max = perGroup * trainers;
+    if (trainees > max) warnings.push(`In-house FWT allows a maximum of ${perGroup} trainees per group/trainer for ${courseCategory === 'technical' ? 'technical' : 'soft skills'} courses. With ${trainers} trainer(s) the maximum is ${max}. You entered ${trainees} — add more trainers or reduce trainees.`);
     if (trainees > 0 && trainees < 2) warnings.push('In-house FWT requires a minimum of 2 trainees.');
   }
   if (subType === 'general_public' && trainees > 9) warnings.push('General public FWT allows a maximum of 9 trainees per employer.');

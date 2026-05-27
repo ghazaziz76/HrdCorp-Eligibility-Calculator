@@ -6,7 +6,7 @@ import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
 const FWT_NOTES = [
   'FWT funds in-house or public pre-employment training, with the aim of employing the trainees upon completion. Employers must identify the future workers under the pre-employment training course.',
   'Each training session must be at least 4 hours. Maximum training period is 1 year.',
-  'In-house: minimum 2 trainees; maximum 25 (technical) or 50 (soft skills). Public certification: minimum 1, no maximum. General public: minimum 1, maximum 9.',
+  'In-house: minimum 2 trainees; maximum 25 (technical) or 50 (soft skills) PER trainer/group — e.g. 50 technical trainees require 2 trainers. Public certification: minimum 1, no maximum. General public: minimum 1, maximum 9.',
   'In-house internal trainer allowance: RM1,400/full day or RM800/half day per group (full day capped at 7 hours). Training-provider course fee follows the ACM and is prorated if fewer than 5 trainees.',
   'Short programmes (under 1 month): trainee daily allowance (RM250/day under 100km, RM500/day 100km+, or actual paid — whichever is lower) plus meal allowance RM100/day per trainee.',
   'Longer programmes (over 1 month): trainees’ monthly allowance is paid by the employer. The salary offered on employment must be at least the monthly allowance paid during training; the claim is based on whichever is lower.',
@@ -98,20 +98,23 @@ export default function FwtForm() {
             </select>
           </div>
 
+          {isInhouse && (
+            <div style={rStyle}>
+              <label style={lStyle}>Number of Trainers (groups)</label>
+              <input type="number" min="1" style={iStyle} value={numberOfTrainers} onChange={e => setNumberOfTrainers(e.target.value)} />
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>
+                Max {courseCategory === 'technical' ? 25 : 50} trainees per trainer ({courseCategory === 'technical' ? 'technical' : 'soft skills'}).
+              </p>
+            </div>
+          )}
           {isInternal && (
-            <>
-              <div style={rStyle}>
-                <label style={lStyle}>Number of Trainers (groups)</label>
-                <input type="number" min="1" style={iStyle} value={numberOfTrainers} onChange={e => setNumberOfTrainers(e.target.value)} />
-              </div>
-              <div style={rStyle}>
-                <label style={lStyle}>Trainer Daily Rate</label>
-                <select style={iStyle} value={dailyDuration} onChange={e => setDailyDuration(e.target.value)}>
-                  <option value="full_day">Full day — RM1,400/group</option>
-                  <option value="half_day">Half day — RM800/group</option>
-                </select>
-              </div>
-            </>
+            <div style={rStyle}>
+              <label style={lStyle}>Trainer Daily Rate</label>
+              <select style={iStyle} value={dailyDuration} onChange={e => setDailyDuration(e.target.value)}>
+                <option value="full_day">Full day — RM1,400/group</option>
+                <option value="half_day">Half day — RM800/group</option>
+              </select>
+            </div>
           )}
 
           <div style={rStyle}>
