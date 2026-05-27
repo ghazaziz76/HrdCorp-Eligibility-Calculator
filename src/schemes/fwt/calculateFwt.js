@@ -102,6 +102,7 @@ export function calculateFwt({
 
   const warnings = [];
   if (totalClaimable === 0) warnings.push('Enter the training details to calculate.');
+  if (isLess && days > 30) warnings.push('For a programme of “less than 1 month”, training days cannot exceed 30. For longer programmes, select “More than 1 month”.');
   if (isInhouse) {
     if (trainees > 0 && trainees < 2) warnings.push('In-house FWT requires a minimum of 2 trainees.');
     if (groups > 0) warnings.push(`${trainees} trainee(s) require ${groups} trainer(s)/group(s) at a maximum of ${perGroupMax} trainees per group (${courseCategory === 'technical' ? 'technical' : 'soft skills'}).`);

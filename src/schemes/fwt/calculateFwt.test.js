@@ -95,6 +95,11 @@ test('in-house under 2 trainees triggers a minimum warning', () => {
   expect(r.warnings.some(w => /minimum of 2 trainees/i.test(w))).toBe(true);
 });
 
+test('less than 1 month with >30 training days triggers a warning', () => {
+  const r = calculateFwt({ subType: 'inhouse', trainerType: 'internal', numberOfTrainees: 5, trainingDays: 45, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month' });
+  expect(r.warnings.some(w => /cannot exceed 30/i.test(w))).toBe(true);
+});
+
 test('empty input -> zero with guidance warning + supporting docs', () => {
   const r = calculateFwt({});
   expect(r.totalClaimable).toBe(0);

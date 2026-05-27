@@ -115,16 +115,18 @@ export default function FwtForm() {
           )}
 
           <div style={rStyle}>
-            <label style={lStyle}>Training Days</label>
-            <input type="number" min="0" style={iStyle} value={trainingDays} onChange={e => setTrainingDays(e.target.value)} />
-          </div>
-
-          <div style={rStyle}>
             <label style={lStyle}>Programme Length</label>
-            <select style={iStyle} value={durationType} onChange={e => setDurationType(e.target.value)}>
+            <select style={iStyle} value={durationType} onChange={e => { setDurationType(e.target.value); setResult(null); }}>
               <option value="less_than_month">Less than 1 month</option>
               <option value="more_than_month">More than 1 month</option>
             </select>
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Choose this first — it determines how the allowances are claimed.</p>
+          </div>
+
+          <div style={rStyle}>
+            <label style={lStyle}>Training Days</label>
+            <input type="number" min="0" max={isLess ? 30 : undefined} style={iStyle} value={trainingDays} onChange={e => setTrainingDays(e.target.value)} />
+            {isLess && <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Under 1 month → max 30 training days. For longer, switch to “More than 1 month”.</p>}
           </div>
 
           {!isInhouse && (
