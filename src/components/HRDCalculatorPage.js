@@ -16,7 +16,7 @@ const TABS = [
 ];
 
 // ── History Tab ─────────────────────────────────────────
-const SCHEME_NAMES = { hcc: 'HCC', sbl: 'SBL', slb: 'SLB', alat: 'ALAT', it: 'IT' };
+const SCHEME_NAMES = { hcc: 'HCC', sbl: 'SBL', slb: 'SLB', alat: 'ALAT', it: 'IT', its: 'ITS', sgm: 'SGM' };
 const TRAINING_NAMES = {
     inhouse: 'In-House', rot_inhouse: 'ROT In-House', coaching_mentoring: 'Coaching',
     rot_public: 'ROT Public', public: 'Public', seminar_conference: 'Seminar',

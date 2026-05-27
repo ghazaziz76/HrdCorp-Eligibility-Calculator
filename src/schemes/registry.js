@@ -3,6 +3,8 @@
 export const SCHEMES = [
   { id: 'alat', code: 'ALAT', label: 'ALAT — Training Facilities & Renovation', group: 'Facilities & Equipment Schemes', description: 'Purchase training equipment + set up / renovate a training room. Capped at 50% of levy balance.' },
   { id: 'it',   code: 'IT',   label: 'IT — Info Tech & Computer-Aided Training', group: 'Facilities & Equipment Schemes', description: 'Purchase desktops / laptops for a computer training room. Max RM25,000, once every 3 years.' },
+  { id: 'its',  code: 'ITS',  label: 'ITS — Industrial Training Scheme', group: 'Allowance Schemes', description: 'University/college interns: monthly allowance + PPE + insurance. 2–12 months, capped at 50% of levy.' },
+  { id: 'sgm',  code: 'SGM',  label: 'SGM — Skim Graduan Madani', group: 'Allowance Schemes', description: 'Graduate 12-month structured training: 12 months of basic salary, capped at 50% of levy.' },
 ];
 
 export const PURCHASE_SCHEME_IDS = SCHEMES.map(s => s.id);
