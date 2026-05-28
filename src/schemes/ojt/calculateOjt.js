@@ -80,16 +80,25 @@ export function calculateOjt({
   warnings.push(`Application must be submitted within ${APPLY_WINDOW_MONTHS} months AFTER the training ended. Examination fee is claimable as per receipt.`);
   warnings.push('Trainer and trainee details with handwritten signatures are required. No claim submission is required under OJT.');
 
+  // Group the docs exactly as the ACM guide presents them, with sub-items.
   const grantSubmission = [
-    doc('OJT Attendance and Evaluation Log — trainees must achieve satisfactory levels of skills competency.'),
-    doc('Trainer’s Claim Form (OJT Trainer’s Allowance Claim Form).'),
+    {
+      text: 'OJT Trainer Allowance:',
+      subItems: [
+        'OJT Attendance and Evaluation Log — trainee should achieve satisfactory levels of skills competency.',
+        'Trainer’s Claim Form (OJT Trainer’s Allowance Claim Form).',
+      ],
+    },
   ];
   if (examFee > 0 || matCost > 0) {
-    grantSubmission.push(
-      doc('Examination schedule.'),
-      doc('Receipt of learning materials (journals, books, online subscriptions, etc.).'),
-      doc('Receipt of examination fee payment.'),
-    );
+    grantSubmission.push({
+      text: 'Examination Fees:',
+      subItems: [
+        'Examination schedule.',
+        'Receipt of learning materials.',
+        'Receipt of examination fee payment.',
+      ],
+    });
   }
 
   return {

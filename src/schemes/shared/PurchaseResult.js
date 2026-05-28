@@ -55,7 +55,16 @@ export default function PurchaseResult({ schemeId, schemeLabel, result }) {
           <p style={{ fontWeight: '700', color: '#283593', marginBottom: '10px', fontSize: '13px' }}>Supporting Documents Required — Grant Submission</p>
           <ol style={{ margin: '0 0 12px', padding: '0 0 0 18px' }}>
             {result.supportingDocs.grantSubmission.map((doc, i) => (
-              <li key={i} style={{ color: '#333', fontSize: '12px', marginBottom: '5px', lineHeight: '1.6' }}>{doc.text}</li>
+              <li key={i} style={{ color: '#333', fontSize: '12px', marginBottom: '5px', lineHeight: '1.6' }}>
+                {doc.text}
+                {doc.subItems && doc.subItems.length > 0 && (
+                  <ul style={{ margin: '4px 0 4px', padding: '0 0 0 18px' }}>
+                    {doc.subItems.map((s, j) => (
+                      <li key={j} style={{ color: '#555', fontSize: '12px', marginBottom: '3px', lineHeight: '1.6' }}>{s}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
             ))}
           </ol>
           {result.supportingDocs.claimSubmission && result.supportingDocs.claimSubmission.length > 0 && (

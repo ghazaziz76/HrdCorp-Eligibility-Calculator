@@ -28,11 +28,21 @@ test('under 4-hour session triggers a warning', () => {
   expect(r.warnings.some(w => /at least 4 hours/i.test(w))).toBe(true);
 });
 
-test('exam-fee / learning-materials docs only appear when those costs are claimed', () => {
+test('exam-fee / learning-materials docs group only appears when those costs are claimed', () => {
   const without = calculateOjt({ numberOfTrainees: 1, trainingHours: 10 });
   const withExam = calculateOjt({ numberOfTrainees: 1, trainingHours: 10, examinationFee: 100 });
-  expect(without.supportingDocs.grantSubmission.some(d => /Examination schedule/i.test(d.text))).toBe(false);
-  expect(withExam.supportingDocs.grantSubmission.some(d => /Examination schedule/i.test(d.text))).toBe(true);
+  expect(without.supportingDocs.grantSubmission.some(d => /Examination Fees/i.test(d.text))).toBe(false);
+  expect(withExam.supportingDocs.grantSubmission.some(d => /Examination Fees/i.test(d.text))).toBe(true);
+  const examGroup = withExam.supportingDocs.grantSubmission.find(d => /Examination Fees/i.test(d.text));
+  expect(examGroup.subItems.some(s => /Examination schedule/i.test(s))).toBe(true);
+});
+
+test('grant submission docs are grouped by heading with sub-items (matches ACM layout)', () => {
+  const r = calculateOjt({ numberOfTrainees: 1, trainingHours: 10 });
+  const trainerGroup = r.supportingDocs.grantSubmission.find(d => /OJT Trainer Allowance/i.test(d.text));
+  expect(trainerGroup).toBeTruthy();
+  expect(trainerGroup.subItems.some(s => /Attendance and Evaluation Log/i.test(s))).toBe(true);
+  expect(trainerGroup.subItems.some(s => /Trainer.s Claim Form/i.test(s))).toBe(true);
 });
 
 test('claim submission is "not required" under OJT', () => {
