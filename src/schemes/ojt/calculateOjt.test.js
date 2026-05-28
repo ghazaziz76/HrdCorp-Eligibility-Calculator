@@ -40,6 +40,30 @@ test('claim submission is "not required" under OJT', () => {
   expect(r.supportingDocs.claimSubmission.some(d => /no claim submission/i.test(d.text))).toBe(true);
 });
 
+test('training duration is computed from start and end dates (inclusive)', () => {
+  const r = calculateOjt({ numberOfTrainees: 1, trainingHours: 10, trainingStartDate: '2026-05-01', trainingEndDate: '2026-05-10' });
+  expect(r.durationDays).toBe(10);
+  expect(r.warnings.some(w => /Training duration: 10 day/i.test(w))).toBe(true);
+});
+
+test('end before start triggers a correction warning', () => {
+  const r = calculateOjt({ numberOfTrainees: 1, trainingHours: 10, trainingStartDate: '2026-05-10', trainingEndDate: '2026-05-01' });
+  expect(r.warnings.some(w => /end date is before the start date/i.test(w))).toBe(true);
+});
+
+test('6-month application deadline computed from training end date', () => {
+  const r = calculateOjt({ numberOfTrainees: 1, trainingHours: 10, trainingEndDate: '2026-05-01' });
+  expect(r.applyDeadline).toBe('2026-11-01');
+  expect(r.warnings.some(w => /Application deadline: 2026-11-01/.test(w))).toBe(true);
+});
+
+test('past deadline (training ended >6 months ago) raises a clear warning', () => {
+  const longAgo = new Date(); longAgo.setFullYear(longAgo.getFullYear() - 2);
+  const r = calculateOjt({ numberOfTrainees: 1, trainingHours: 10, trainingEndDate: longAgo.toISOString().slice(0, 10) });
+  expect(r.pastDeadline).toBe(true);
+  expect(r.warnings.some(w => /APPLICATION DEADLINE HAS PASSED/i.test(w))).toBe(true);
+});
+
 test('empty input -> zero with guidance warning', () => {
   const r = calculateOjt({});
   expect(r.totalClaimable).toBe(0);

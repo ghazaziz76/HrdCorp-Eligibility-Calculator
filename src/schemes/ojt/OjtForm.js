@@ -14,14 +14,28 @@ const OJT_NOTES = [
   'Professional Assessment (e.g. MBOT for technologists/technicians) is claimable under OJT for HRD Corp Registered Employers, without a prior grant application.',
 ];
 
+const readOnlyStyle = { ...iStyle, background: '#e3e7ee', color: '#5b6b8c', cursor: 'not-allowed' };
+
 export default function OjtForm() {
   const [numberOfTrainees, setNumberOfTrainees] = useState('');
   const [trainingHours, setTrainingHours] = useState('');
   const [examinationFee, setExaminationFee] = useState('');
   const [learningMaterials, setLearningMaterials] = useState('');
+  const [trainingStartDate, setTrainingStartDate] = useState('');
+  const [trainingEndDate, setTrainingEndDate] = useState('');
   const [result, setResult] = useState(null);
 
-  const calculate = () => setResult(calculateOjt({ numberOfTrainees, trainingHours, examinationFee, learningMaterials }));
+  // Derived: live duration display for the user before they click Calculate.
+  const liveDuration = (() => {
+    if (!trainingStartDate || !trainingEndDate) return null;
+    const s = new Date(trainingStartDate), e = new Date(trainingEndDate);
+    if (isNaN(s) || isNaN(e) || e < s) return null;
+    return Math.round((e - s) / 86400000) + 1;
+  })();
+
+  const calculate = () => setResult(calculateOjt({
+    numberOfTrainees, trainingHours, examinationFee, learningMaterials, trainingStartDate, trainingEndDate,
+  }));
 
   return (
     <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
@@ -37,26 +51,62 @@ export default function OjtForm() {
 
       <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '24px', marginBottom: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+
           <div style={rStyle}>
             <label style={lStyle}>Number of Trainees (1–4 per session)</label>
-            <input type="number" min="1" max="4" style={iStyle} value={numberOfTrainees} onChange={e => setNumberOfTrainees(e.target.value)} />
-            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>For 5 or more trainees, apply under the SBL scheme instead.</p>
+            <input type="number" min="1" max="4" style={iStyle} value={numberOfTrainees}
+              onChange={e => {
+                const v = e.target.value;
+                // Hard-clamp at 4 — for 5+ trainees, the SBL scheme applies instead.
+                if ((parseInt(v, 10) || 0) > 4) { setNumberOfTrainees('4'); return; }
+                setNumberOfTrainees(v);
+              }} />
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Capped at 4. For 5 or more trainees, apply under the SBL scheme instead.</p>
           </div>
+
           <div style={rStyle}>
             <label style={lStyle}>Total Training Hours (max 300)</label>
-            <input type="number" min="0" max="300" style={iStyle} value={trainingHours} onChange={e => setTrainingHours(e.target.value)} />
-            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Max 7 hours/day. Minimum 4 hours per session.</p>
+            <input type="number" min="0" max="300" style={iStyle} value={trainingHours}
+              onChange={e => {
+                const v = e.target.value;
+                // Hard-clamp at 300 total hours.
+                if ((parseInt(v, 10) || 0) > 300) { setTrainingHours('300'); return; }
+                setTrainingHours(v);
+              }} />
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Capped at 300 hours. Max 7 hours/day; minimum 4 hours per session.</p>
           </div>
+
+          <div style={rStyle}>
+            <label style={lStyle}>Training Start Date</label>
+            <input type="date" style={iStyle} value={trainingStartDate} onChange={e => setTrainingStartDate(e.target.value)} />
+          </div>
+
+          <div style={rStyle}>
+            <label style={lStyle}>Training End Date</label>
+            <input type="date" style={iStyle} value={trainingEndDate} onChange={e => setTrainingEndDate(e.target.value)} />
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Application can be submitted within 6 months <strong>AFTER</strong> the training ends.</p>
+          </div>
+
+          <div style={rStyle}>
+            <label style={lStyle}>Total Training Duration</label>
+            <input type="text" style={readOnlyStyle} value={liveDuration != null ? `${liveDuration} day(s)` : '—'} readOnly tabIndex={-1} />
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Auto-calculated from start and end dates.</p>
+          </div>
+
+          <div /> {/* spacer for grid alignment */}
+
           <div style={rStyle}>
             <label style={lStyle}>Examination Fee (RM, optional)</label>
             <input type="number" min="0" style={iStyle} value={examinationFee} onChange={e => setExaminationFee(e.target.value)} />
             <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>As per receipt — e.g. MBOT, certification body.</p>
           </div>
+
           <div style={rStyle}>
             <label style={lStyle}>Learning Materials — self-learning (RM, optional)</label>
             <input type="number" min="0" style={iStyle} value={learningMaterials} onChange={e => setLearningMaterials(e.target.value)} />
             <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>As per supplier receipts — journals, books, online subscriptions.</p>
           </div>
+
         </div>
       </div>
 
