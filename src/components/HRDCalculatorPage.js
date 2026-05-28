@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { HRDCorpCostCalculator } from './HRDCorpCostCalculator';
+import CalculatorTab from './CalculatorTab';
 import { useACMData } from '../context/ACMDataContext';
 import milleniumLogo from '../assets/Millenium-removebg-preview.png';
 import auraLogo from '../assets/AURA-remove.png';
+import appIcon from '../assets/app-icon.png';
 
 const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfYgJEpz_b9HthuFVrAv_3Ep7q2YtXTusQlD7ZUEzvhIHXpqg/viewform?usp=dialog';
 const AURA_WEBSITE_URL = 'https://www.milleniumrx.biz/product/aura/index.html';
@@ -15,7 +16,7 @@ const TABS = [
 ];
 
 // ── History Tab ─────────────────────────────────────────
-const SCHEME_NAMES = { hcc: 'HCC', sbl: 'SBL', slb: 'SLB' };
+const SCHEME_NAMES = { hcc: 'HCC', sbl: 'SBL', slb: 'SLB', alat: 'ALAT', it: 'IT', its: 'ITS', sgm: 'SGM', fwt: 'FWT', ojt: 'OJT' };
 const TRAINING_NAMES = {
     inhouse: 'In-House', rot_inhouse: 'ROT In-House', coaching_mentoring: 'Coaching',
     rot_public: 'ROT Public', public: 'Public', seminar_conference: 'Seminar',
@@ -146,7 +147,7 @@ const AboutTab = () => (
     <div>
         <h3 style={{ color: '#1b5e20', marginBottom: '16px' }}>About</h3>
         <div style={{ background: '#fff', borderRadius: '10px', padding: '20px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-            <h4 style={{ margin: '0 0 8px', color: '#333' }}>HRD Grant Eligibility Calculator</h4>
+            <h4 style={{ margin: '0 0 8px', color: '#333' }}>Training Grant Estimator</h4>
             <p style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>
                 Calculate your HRD Corp training grant eligibility based on the latest Allowable Cost Matrix (ACM).
                 Supports SBL, HCC, and SLB schemes.
@@ -196,13 +197,16 @@ const HRDCalculatorPage = () => {
                 justifyContent: 'space-between',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
             }}>
-                <div>
-                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700' }}>
-                        HRD Corp Eligibility Calculator
-                    </h2>
-                    <p style={{ margin: '2px 0 0', fontSize: '13px', opacity: 0.85 }}>
-                        Allowable Cost Matrix (ACM) — Public Preview
-                    </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <img src={appIcon} alt="Training Grant Estimator" style={{ height: '44px', width: '44px', borderRadius: '10px', objectFit: 'contain' }} />
+                    <div>
+                        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700' }}>
+                            Training Grant Estimator
+                        </h2>
+                        <p style={{ margin: '2px 0 0', fontSize: '13px', opacity: 0.85 }}>
+                            Allowable Cost Matrix (ACM) — Public Preview
+                        </p>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <a href="/admin" style={{ color: 'white', textDecoration: 'none', fontSize: '13px', background: 'rgba(255,255,255,0.12)', padding: '7px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.25)' }}>
@@ -255,7 +259,7 @@ const HRDCalculatorPage = () => {
 
             {/* Tab Content */}
             <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px 16px' }}>
-                {activeTab === 'calculator' && <HRDCorpCostCalculator />}
+                {activeTab === 'calculator' && <CalculatorTab />}
                 {activeTab === 'history' && <HistoryTab />}
                 {activeTab === 'reference' && <ReferenceTab />}
                 {activeTab === 'about' && <AboutTab />}
