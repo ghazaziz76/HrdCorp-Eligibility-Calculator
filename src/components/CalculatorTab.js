@@ -5,6 +5,7 @@ import ItForm from '../schemes/it/ItForm';
 import ItsForm from '../schemes/its/ItsForm';
 import SgmForm from '../schemes/sgm/SgmForm';
 import FwtForm from '../schemes/fwt/FwtForm';
+import OjtForm from '../schemes/ojt/OjtForm';
 
 const FAMILIES = [
   { id: 'training', label: 'Training Course Schemes (HCC / SBL / SLB)' },
@@ -12,6 +13,7 @@ const FAMILIES = [
   { id: 'it', label: 'IT' },
   { id: 'its', label: 'ITS' },
   { id: 'fwt', label: 'FWT' },
+  { id: 'ojt', label: 'OJT' },
   { id: 'sgm', label: 'SGM' },
 ];
 
@@ -36,6 +38,7 @@ export default function CalculatorTab() {
       {family === 'it' && <ItForm />}
       {family === 'its' && <ItsForm />}
       {family === 'fwt' && <FwtForm />}
+      {family === 'ojt' && <OjtForm />}
       {family === 'sgm' && <SgmForm />}
     </div>
   );

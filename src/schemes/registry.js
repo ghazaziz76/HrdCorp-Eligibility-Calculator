@@ -6,6 +6,7 @@ export const SCHEMES = [
   { id: 'its',  code: 'ITS',  label: 'ITS — Industrial Training Scheme', group: 'Allowance Schemes', description: 'University/college interns: monthly allowance + PPE + insurance. 2–12 months, capped at 50% of levy.' },
   { id: 'sgm',  code: 'SGM',  label: 'SGM — Skim Graduan Madani', group: 'Allowance Schemes', description: 'Graduate 12-month structured training: 12 months of basic salary, capped at 50% of levy.' },
   { id: 'fwt',  code: 'FWT',  label: 'FWT — Future Workers Training', group: 'Training Schemes', description: 'Pre-employment training (in-house / public certification / general public) aiming to employ trainees on completion.' },
+  { id: 'ojt',  code: 'OJT',  label: 'OJT — On-the-Job Training', group: 'Training Schemes', description: 'A skilled worker trains an unskilled / new worker on the job. RM50/trainee/hour, max 300 hours.' },
 ];
 
 export const PURCHASE_SCHEME_IDS = SCHEMES.map(s => s.id);
