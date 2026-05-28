@@ -111,6 +111,19 @@ export default function OjtForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
+
+      {result && result.pastDeadline && (
+        <div style={{ background: '#ffebee', border: '2px solid #e53935', borderRadius: '10px', padding: '18px 22px', marginBottom: '20px' }}>
+          <p style={{ fontWeight: '700', color: '#b71c1c', fontSize: '15px', margin: '0 0 8px' }}>🚫 Application Deadline Has Passed — Not Eligible</p>
+          <p style={{ color: '#c62828', fontSize: '13px', margin: '0 0 6px', lineHeight: '1.6' }}>
+            The training ended on <strong>{trainingEndDate}</strong>. OJT applications must be submitted within <strong>6 months AFTER training ends</strong> — that deadline was <strong>{result.applyDeadline}</strong>, which has now passed.
+          </p>
+          <p style={{ color: '#c62828', fontSize: '13px', margin: 0, lineHeight: '1.6' }}>
+            <strong>Submitting now will be rejected by HRD Corp.</strong> The figures below are shown for reference only.
+          </p>
+        </div>
+      )}
+
       <PurchaseResult schemeId="ojt" schemeLabel="OJT — On-the-Job Training" result={result} />
     </div>
   );
