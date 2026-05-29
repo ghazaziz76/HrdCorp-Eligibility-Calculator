@@ -18,9 +18,13 @@ const defaultName = (schemeLabel) => {
   return `${code} · ${today}`;
 };
 
-export default function SavePlanModal({ open, onClose, onCreate, onUpdate, schemeLabel, fromPlanName }) {
+export default function SavePlanModal({ open, onClose, onCreate, onUpdate, schemeLabel, fromPlanName, suggestedName }) {
   const [name, setName] = useState('');
-  useEffect(() => { if (open) setName(fromPlanName || defaultName(schemeLabel)); }, [open, schemeLabel, fromPlanName]);
+  useEffect(() => {
+    if (!open) return;
+    // Priority: existing-plan rename > caller-supplied suggestion > generic default.
+    setName(fromPlanName || suggestedName || defaultName(schemeLabel));
+  }, [open, schemeLabel, fromPlanName, suggestedName]);
 
   if (!open) return null;
   const trimmed = name.trim();
