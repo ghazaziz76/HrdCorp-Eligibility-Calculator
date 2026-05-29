@@ -17,6 +17,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const tableEdition = liveVersion?.acm_table_edition || 'November 2025';
     // ── Scheme ────────────────────────────────────────────────
     const [scheme,          setScheme]          = React.useState('');   // '' = not yet chosen
+    const [trainingProgrammeName, setTrainingProgrammeName] = React.useState('');
 
     // ── Basic fields ──────────────────────────────────────────
     const [trainingType,    setTrainingType]    = React.useState('inhouse');
@@ -54,7 +55,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const [dirty,           setDirty]           = React.useState(false);
 
     usePlanSeed(initialPlan, {
-      scheme: setScheme, trainingType: setTrainingType, trainerType: setTrainerType,
+      scheme: setScheme, trainingProgrammeName: setTrainingProgrammeName, trainingType: setTrainingType, trainerType: setTrainerType,
       numberOfTrainers: setNumberOfTrainers, venue: setVenue, courseCategory: setCourseCategory,
       duration: setDuration, days: setDays, elearningHours: setElearningHours,
       extraDays: setExtraDays, internalTrainerFromBranch: setInternalTrainerFromBranch,
@@ -209,7 +210,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
     // ── What-if Optimizer wiring ──────────────────────────
     const currentInputs = {
-        scheme, trainingType, trainerType, numberOfTrainers, venue, courseCategory,
+        scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue, courseCategory,
         duration, days, elearningHours, extraDays, internalTrainerFromBranch,
         numberOfSpeakers, hasLTM, ltmActualCost, devLevel, skmLevel, devLocation,
         devPrivateInstitution, devMonths, devFullTime, actualCourseFee,
@@ -297,6 +298,24 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
             {/* ── REST OF FORM (only shown after scheme is chosen) ── */}
             {scheme && (<>
+
+            {/* ── TRAINING PROGRAMME NAME ─────────────────────── */}
+            <div style={{ background: '#fff', border: '1px solid #c8e6c9', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
+                <label htmlFor="training-prog-name" style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1b5e20', marginBottom: '6px' }}>
+                    📋 Training Programme Name <span style={{ color: '#888', fontWeight: '400' }}>(optional)</span>
+                </label>
+                <input
+                    id="training-prog-name"
+                    type="text"
+                    value={trainingProgrammeName}
+                    onChange={e => setTrainingProgrammeName(e.target.value)}
+                    placeholder="e.g. 2026 Q1 Leadership Development Programme"
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
+                />
+                <p style={{ fontSize: '11px', color: '#888', margin: '6px 0 0' }}>
+                    Used when saving — the plan will be named <em>“{trainingProgrammeName.trim() || 'Your name'} - {(scheme || '').toUpperCase()} - {new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })} 14:30”</em>.
+                </p>
+            </div>
 
             {/* ── BASIC FIELDS ─────────────────────────────────── */}
             <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '24px', marginBottom: '20px' }}>
@@ -875,13 +894,23 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                 onClose={() => setSaveOpen(false)}
                 schemeLabel={`${(scheme || '').toUpperCase()} — Training Course`}
                 fromPlanName={initialPlan?.name}
+                suggestedName={(() => {
+                    const trimmed = (trainingProgrammeName || '').trim();
+                    if (!trimmed) return undefined;
+                    const code = (scheme || '').toUpperCase();
+                    const stamp = new Date().toLocaleString('en-MY', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', hour12: false,
+                    });
+                    return `${trimmed} - ${code} - ${stamp}`;
+                })()}
                 onCreate={(name) => {
                     savePlan({
                         name,
                         schemeId: scheme,
                         schemeLabel: `${(scheme || '').toUpperCase()} — Training Course`,
                         inputs: {
-                            scheme, trainingType, trainerType, numberOfTrainers, venue,
+                            scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue,
                             courseCategory, duration, days, elearningHours, extraDays,
                             internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
                             devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
@@ -896,7 +925,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     updatePlan(initialPlan.id, {
                         name,
                         inputs: {
-                            scheme, trainingType, trainerType, numberOfTrainers, venue,
+                            scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue,
                             courseCategory, duration, days, elearningHours, extraDays,
                             internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
                             devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
