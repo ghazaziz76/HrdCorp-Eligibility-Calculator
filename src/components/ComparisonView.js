@@ -29,10 +29,6 @@ export default function ComparisonView({ plans, onBack }) {
         </div>
       )}
 
-      {planHeaders.length < 2 && (
-        <div style={s.emptyBanner}>Not enough plans to compare.</div>
-      )}
-
       <div style={s.scroll}>
         <div style={{ ...s.grid, gridTemplateColumns: `180px repeat(${cols}, minmax(200px, ${colPercent}%))` }}>
           <div style={s.colLabel} />

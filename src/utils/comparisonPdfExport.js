@@ -4,6 +4,9 @@
 
 const formatRM = (n) => `RM ${Number(n).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const truncate = (s, max) => (s && s.length > max ? s.slice(0, max - 1) + '…' : s || '');
+// HTML-escape user-supplied strings so plan names containing `<`, `&`, etc.
+// render as text in the print window rather than breaking the page.
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const buildHtml = (data) => {
   const { planHeaders, inputRows, itemRows, totals, highestIndex } = data;
@@ -11,21 +14,21 @@ const buildHtml = (data) => {
 
   const planCols = planHeaders.map(p => `
     <th>
-      <div class="plan-name">${truncate(p.name, 40)}</div>
-      <div class="plan-scheme">${(p.schemeId || '').toUpperCase()}</div>
-      <div class="plan-sub">${p.subtitle || ''}</div>
+      <div class="plan-name">${esc(truncate(p.name, 40))}</div>
+      <div class="plan-scheme">${esc((p.schemeId || '').toUpperCase())}</div>
+      <div class="plan-sub">${esc(p.subtitle || '')}</div>
     </th>`).join('');
 
   const inputRowsHtml = inputRows.map(row => `
     <tr class="${row.differ ? 'diff' : ''}">
-      <td class="label">${row.label}</td>
-      ${row.values.map(v => `<td class="${row.differ ? 'val-bold' : 'val'}">${v}</td>`).join('')}
+      <td class="label">${esc(row.label)}</td>
+      ${row.values.map(v => `<td class="${row.differ ? 'val-bold' : 'val'}">${esc(v)}</td>`).join('')}
     </tr>`).join('');
 
   const itemRowsHtml = itemRows.map(row => `
     <tr>
-      <td class="label">${row.label}</td>
-      ${row.amounts.map(a => `<td class="val">${a == null ? '—' : (typeof a === 'number' ? formatRM(a) : a)}</td>`).join('')}
+      <td class="label">${esc(row.label)}</td>
+      ${row.amounts.map(a => `<td class="val">${a == null ? '—' : (typeof a === 'number' ? formatRM(a) : esc(a))}</td>`).join('')}
     </tr>`).join('');
 
   const totalsHtml = totals.map((t, i) => `
