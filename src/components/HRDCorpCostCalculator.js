@@ -2,11 +2,14 @@ import React from 'react';
 import { calculateEligibility } from '../utils/HRDEligibilityCalculator';
 import { useACMData } from '../context/ACMDataContext';
 import { exportResultPDF } from '../utils/pdfExportWeb';
+import SavePlanModal from './SavePlanModal';
+import { savePlan, updatePlan } from '../utils/savedPlans';
+import usePlanSeed from '../schemes/shared/usePlanSeed';
 
 // =============================================
 // HRDCORP ELIGIBILITY CALCULATOR
 // =============================================
-export const HRDCorpCostCalculator = () => {
+export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const { rates: liveRates, claimDocs: liveClaimDocs, version: liveVersion } = useACMData() || {};
     const guideEdition = liveVersion?.acm_guide_edition || 'September 2025';
     const tableEdition = liveVersion?.acm_table_edition || 'November 2025';
@@ -43,8 +46,21 @@ export const HRDCorpCostCalculator = () => {
     const [subsidiaries, setSubsidiaries] = React.useState([]);
 
     // ── Result ────────────────────────────────────────────────
-    const [result,          setResult]          = React.useState(null);
+    const [result,          setResult]          = React.useState(initialPlan?.resultSnapshot ?? null);
+    const [saveOpen,        setSaveOpen]        = React.useState(false);
     const [blockError,      setBlockError]      = React.useState(null);
+
+    usePlanSeed(initialPlan, {
+      scheme: setScheme, trainingType: setTrainingType, trainerType: setTrainerType,
+      numberOfTrainers: setNumberOfTrainers, venue: setVenue, courseCategory: setCourseCategory,
+      duration: setDuration, days: setDays, elearningHours: setElearningHours,
+      extraDays: setExtraDays, internalTrainerFromBranch: setInternalTrainerFromBranch,
+      numberOfSpeakers: setNumberOfSpeakers, hasLTM: setHasLTM, ltmActualCost: setLtmActualCost,
+      devLevel: setDevLevel, skmLevel: setSkmLevel, devLocation: setDevLocation,
+      devPrivateInstitution: setDevPrivateInstitution, devMonths: setDevMonths,
+      devFullTime: setDevFullTime, actualCourseFee: setActualCourseFee,
+      host: setHost, branches: setBranches, subsidiaries: setSubsidiaries,
+    });
 
     // ── Derived flags (mirror engine logic) ──────────────────
     const isCoachingMentoring = trainingType === 'coaching_mentoring';
@@ -189,7 +205,7 @@ export const HRDCorpCostCalculator = () => {
 
     return (
         <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
-            <h2 style={{ color: '#2e7d32', marginBottom: '6px' }}>💰 HRDCorp Eligibility Calculator</h2>
+            <h2 style={{ color: '#2e7d32', marginBottom: '6px' }}>💰 Training Grant Estimator</h2>
             <p style={{ color: '#777', fontSize: '13px', marginBottom: '24px' }}>
                 Based on HRDCorp Allowable Cost Matrix (ACM). Calculates maximum claimable cost per training.
             </p>
@@ -808,9 +824,56 @@ export const HRDCorpCostCalculator = () => {
                     >
                         📄 Export as PDF
                     </button>
+                    <button
+                        onClick={() => setSaveOpen(true)}
+                        style={{
+                            display: 'block', width: '100%', marginTop: '10px', padding: '14px',
+                            background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '8px',
+                            fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                        }}
+                    >
+                        💾 Save as Plan
+                    </button>
                 </div>
             )}
             </>)}
+            <SavePlanModal
+                open={saveOpen}
+                onClose={() => setSaveOpen(false)}
+                schemeLabel={`${(scheme || '').toUpperCase()} — Training Course`}
+                fromPlanName={initialPlan?.name}
+                onCreate={(name) => {
+                    savePlan({
+                        name,
+                        schemeId: scheme,
+                        schemeLabel: `${(scheme || '').toUpperCase()} — Training Course`,
+                        inputs: {
+                            scheme, trainingType, trainerType, numberOfTrainers, venue,
+                            courseCategory, duration, days, elearningHours, extraDays,
+                            internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
+                            devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
+                            devFullTime, actualCourseFee, host, branches, subsidiaries,
+                        },
+                        resultSnapshot: result,
+                    });
+                    setSaveOpen(false);
+                }}
+                onUpdate={(name) => {
+                    if (!initialPlan?.id) return;
+                    updatePlan(initialPlan.id, {
+                        name,
+                        inputs: {
+                            scheme, trainingType, trainerType, numberOfTrainers, venue,
+                            courseCategory, duration, days, elearningHours, extraDays,
+                            internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
+                            devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
+                            devFullTime, actualCourseFee, host, branches, subsidiaries,
+                        },
+                        resultSnapshot: result,
+                    });
+                    setSaveOpen(false);
+                }}
+            />
         </div>
     );
 };
