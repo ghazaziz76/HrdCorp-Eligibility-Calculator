@@ -216,7 +216,10 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
         devPrivateInstitution, devMonths, devFullTime, actualCourseFee,
         host, branches, subsidiaries,
     };
-    const suggestions = result ? suggestImprovements(currentInputs, result) : [];
+    // Compute suggestions whenever there's something to act on — a successful
+    // result OR a hard block. The B2 rule needs `result` and won't fire when
+    // the calc is blocked, but the input-driven rules (B1, B3, O1, O2, O3) still will.
+    const suggestions = (result || blockError) ? suggestImprovements(currentInputs, result) : [];
 
     const SETTERS = {
         scheme: (v) => setScheme(v),
@@ -765,6 +768,9 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     <p style={{ color: '#c62828', fontSize: '13px', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.7' }}>{blockError}</p>
                 </div>
             )}
+
+            {/* What-if Suggestions Panel (also shown when blocked, so the user can Apply the fix) */}
+            {blockError && <SuggestionsPanel suggestions={suggestions} onApply={handleApply} dirty={dirty} />}
 
             {/* ── RESULTS ──────────────────────────────────────── */}
             {result && (
