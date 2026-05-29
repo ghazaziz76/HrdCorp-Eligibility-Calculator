@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { calculateFwt, groupsFor } from './calculateFwt';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 const FWT_NOTES = [
   'FWT funds in-house or public pre-employment training, with the aim of employing the trainees upon completion. Employers must identify the future workers under the pre-employment training course.',
@@ -21,7 +22,7 @@ const SUBTYPES = [
 
 const readOnlyStyle = { ...iStyle, background: '#e3e7ee', color: '#5b6b8c', cursor: 'not-allowed' };
 
-export default function FwtForm() {
+export default function FwtForm({ initialPlan } = {}) {
   const [subType, setSubType] = useState('inhouse');
   const [courseCategory, setCourseCategory] = useState('soft_skills');
   const [trainerType, setTrainerType] = useState('internal');
@@ -35,7 +36,8 @@ export default function FwtForm() {
   const [months, setMonths] = useState('');
   const [monthlyAllowancePerTrainee, setMonthlyAllowancePerTrainee] = useState('');
   const [consumableCost, setConsumableCost] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { subType: setSubType, courseCategory: setCourseCategory, trainerType: setTrainerType, numberOfTrainees: setNumberOfTrainees, trainingDays: setTrainingDays, dailyDuration: setDailyDuration, distance: setDistance, allowanceType: setAllowanceType, courseFee: setCourseFee, durationType: setDurationType, months: setMonths, monthlyAllowancePerTrainee: setMonthlyAllowancePerTrainee, consumableCost: setConsumableCost });
 
   const isInhouse = subType === 'inhouse';
   const isInternal = isInhouse && trainerType === 'internal';
@@ -199,7 +201,7 @@ export default function FwtForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="fwt" schemeLabel="FWT — Future Workers Training" result={result} />
+      <PurchaseResult schemeId="fwt" schemeLabel="FWT — Future Workers Training" result={result} inputs={{ subType, courseCategory, trainerType, numberOfTrainees, trainingDays, dailyDuration, distance, allowanceType, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

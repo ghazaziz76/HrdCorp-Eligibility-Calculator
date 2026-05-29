@@ -10,6 +10,5 @@ export default function usePlanSeed(initialPlan, setters) {
     for (const k of Object.keys(setters)) {
       if (k in initialPlan.inputs) setters[k](initialPlan.inputs[k]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPlan]);
+  }, [initialPlan]); // setters object identity is intentionally excluded — callers pass a literal
 }

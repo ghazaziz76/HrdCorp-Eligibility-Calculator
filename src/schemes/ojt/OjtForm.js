@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { calculateOjt } from './calculateOjt';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 const OJT_NOTES = [
   'OJT is when a skilled worker or supervisor trains another unskilled or new worker who works alongside them.',
@@ -16,14 +17,15 @@ const OJT_NOTES = [
 
 const readOnlyStyle = { ...iStyle, background: '#e3e7ee', color: '#5b6b8c', cursor: 'not-allowed' };
 
-export default function OjtForm() {
+export default function OjtForm({ initialPlan } = {}) {
   const [numberOfTrainees, setNumberOfTrainees] = useState('');
   const [trainingHours, setTrainingHours] = useState('');
   const [examinationFee, setExaminationFee] = useState('');
   const [learningMaterials, setLearningMaterials] = useState('');
   const [trainingStartDate, setTrainingStartDate] = useState('');
   const [trainingEndDate, setTrainingEndDate] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { numberOfTrainees: setNumberOfTrainees, trainingHours: setTrainingHours, examinationFee: setExaminationFee, learningMaterials: setLearningMaterials, trainingStartDate: setTrainingStartDate, trainingEndDate: setTrainingEndDate });
 
   // Derived: live duration display for the user before they click Calculate.
   const liveDuration = (() => {
@@ -124,7 +126,7 @@ export default function OjtForm() {
         </div>
       )}
 
-      <PurchaseResult schemeId="ojt" schemeLabel="OJT — On-the-Job Training" result={result} />
+      <PurchaseResult schemeId="ojt" schemeLabel="OJT — On-the-Job Training" result={result} inputs={{ numberOfTrainees, trainingHours, examinationFee, learningMaterials, trainingStartDate, trainingEndDate }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

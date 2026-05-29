@@ -3,6 +3,7 @@ import { calculateAlat } from './calculateAlat';
 import CostList from '../shared/CostList';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 const EQUIPMENT_TYPES = [
   'LCD / Data Projector',
@@ -54,11 +55,12 @@ const RENO_TYPES = [
   'Installation (bundled with equipment, same grant)',
 ];
 
-export default function AlatForm() {
+export default function AlatForm({ initialPlan } = {}) {
   const [levyBalance, setLevyBalance] = useState('');
   const [equipment, setEquipment] = useState([{ item: EQUIPMENT_TYPES[0], customItem: '', cost: '' }]);
   const [renovation, setRenovation] = useState([]);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { levyBalance: setLevyBalance, equipment: setEquipment, renovation: setRenovation });
 
   const calculate = () => setResult(calculateAlat({ levyBalance, equipment, renovation }));
 
@@ -97,7 +99,7 @@ export default function AlatForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="alat" schemeLabel="ALAT — Facilities & Renovation" result={result} />
+      <PurchaseResult schemeId="alat" schemeLabel="ALAT — Facilities & Renovation" result={result} inputs={{ levyBalance, equipment, renovation }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }
