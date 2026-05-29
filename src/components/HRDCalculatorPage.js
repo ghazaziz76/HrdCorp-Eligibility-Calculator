@@ -56,10 +56,13 @@ const HistoryTab = () => {
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <h3 style={{ margin: 0, color: '#1b5e20' }}>Calculation History</h3>
                 <button onClick={clearAll} style={{ background: 'none', border: 'none', color: '#e53935', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Clear All</button>
             </div>
+            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 16px', lineHeight: '1.6' }}>
+                Automatic log of every calculation you run — newest first, capped at the last 50. Click any item to expand the breakdown. History is read-only; to reopen and edit a calculation, save it as a plan from the result panel and use the <strong>My Plans</strong> tab.
+            </p>
             {history.map(item => (
                 <div key={item.id} style={{ background: '#fff', borderRadius: '10px', padding: '16px', marginBottom: '10px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', cursor: 'pointer' }}
                     onClick={() => setExpanded(expanded === item.id ? null : item.id)}>

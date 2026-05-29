@@ -91,7 +91,7 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <h3 style={{ margin: 0, color: '#1b5e20' }}>My Plans</h3>
         {compareState.visible && (
           <button
@@ -109,6 +109,9 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
           </button>
         )}
       </div>
+      <p style={{ fontSize: 12, color: '#666', margin: '0 0 16px', lineHeight: 1.6 }}>
+        Saved calculations you can reopen, edit, duplicate, export as PDF, or delete. Save from any scheme's result panel with the <strong>💾 Save as Plan</strong> button. Tick <strong>2–3 training-scheme plans</strong> (HCC / SBL / SLB) to enable the <strong>Compare</strong> button and see them side by side.
+      </p>
 
       {usage > 0.9 && (
         <div style={{ background: '#fff3e0', border: '1px solid #ffcc80', color: '#e65100', borderRadius: 6, padding: '10px 14px', marginBottom: 12, fontSize: 12 }}>
