@@ -5,6 +5,8 @@ import { exportResultPDF } from '../utils/pdfExportWeb';
 import SavePlanModal from './SavePlanModal';
 import { savePlan, updatePlan } from '../utils/savedPlans';
 import usePlanSeed from '../schemes/shared/usePlanSeed';
+import SuggestionsPanel from './SuggestionsPanel';
+import { suggestImprovements } from '../utils/suggestImprovements';
 
 // =============================================
 // HRDCORP ELIGIBILITY CALCULATOR
@@ -49,6 +51,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const [result,          setResult]          = React.useState(initialPlan?.resultSnapshot ?? null);
     const [saveOpen,        setSaveOpen]        = React.useState(false);
     const [blockError,      setBlockError]      = React.useState(null);
+    const [dirty,           setDirty]           = React.useState(false);
 
     usePlanSeed(initialPlan, {
       scheme: setScheme, trainingType: setTrainingType, trainerType: setTrainerType,
@@ -144,6 +147,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             actualCourseFeePerPax:     parseFloat(actualCourseFee)  || 0
         }, liveRates || null, liveClaimDocs || null);
         setResult(r);
+        setDirty(false);
 
         // Save to history (localStorage)
         try {
@@ -202,6 +206,33 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             {!showKm && hint !== false && <p style={{ fontSize: '11px', color: '#888', margin: '6px 0 0' }}>At own location — eligible for Meal Allowance (RM100/day)</p>}
         </div>
     );
+
+    // ── What-if Optimizer wiring ──────────────────────────
+    const currentInputs = {
+        scheme, trainingType, trainerType, numberOfTrainers, venue, courseCategory,
+        duration, days, elearningHours, extraDays, internalTrainerFromBranch,
+        numberOfSpeakers, hasLTM, ltmActualCost, devLevel, skmLevel, devLocation,
+        devPrivateInstitution, devMonths, devFullTime, actualCourseFee,
+        host, branches, subsidiaries,
+    };
+    const suggestions = result ? suggestImprovements(currentInputs, result) : [];
+
+    const SETTERS = {
+        scheme: (v) => setScheme(v),
+        trainingType: (v) => setTrainingType(v),
+        trainerType: (v) => setTrainerType(v),
+        numberOfTrainers: (v) => setNumberOfTrainers(String(v)),
+        venue: (v) => setVenue(v),
+        courseCategory: (v) => setCourseCategory(v),
+        duration: (v) => setDuration(v),
+        days: (v) => setDays(String(v)),
+        actualCourseFee: (v) => setActualCourseFee(String(v)),
+    };
+
+    const handleApply = (patch) => {
+        Object.entries(patch || {}).forEach(([k, v]) => { if (SETTERS[k]) SETTERS[k](v); });
+        setDirty(true);
+    };
 
     return (
         <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
@@ -779,6 +810,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             </p>
                         </div>
                     )}
+                    {/* What-if Suggestions Panel */}
+                    <SuggestionsPanel suggestions={suggestions} onApply={handleApply} dirty={dirty} />
 
                     {/* Supporting Documents */}
                     {result.supportingDocs && (
