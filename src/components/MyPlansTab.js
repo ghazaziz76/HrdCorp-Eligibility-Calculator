@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { loadPlans, deletePlan, renamePlan, duplicatePlan, storageUsageRatio } from '../utils/savedPlans';
 import { useSavedPlans } from '../contexts/SavedPlansContext';
 import { exportResultPDF } from '../utils/pdfExportWeb';
+import ComparisonView from './ComparisonView';
 
 const VALID_SCHEMES = new Set(['hcc', 'sbl', 'slb', 'alat', 'it', 'its', 'fwt', 'ojt', 'sgm']);
 
@@ -15,6 +16,7 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
   const [plans, setPlans] = useState(loadPlans());
   const [expanded, setExpanded] = useState(null);
   const [selected, setSelected] = useState(new Set());
+  const [viewMode, setViewMode] = useState('list');
   const [renamingId, setRenamingId] = useState(null);
   const [renameText, setRenameText] = useState('');
   const { requestOpen } = useSavedPlans();
@@ -55,7 +57,28 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
       { scheme: plan.schemeId, trainingType: plan.schemeLabel, totalPax: 0 });
   };
 
+  const TRAINING_SCHEMES = ['hcc', 'sbl', 'slb'];
+  const selectedPlans = plans.filter(p => selected.has(p.id));
+  const allTraining = selectedPlans.length > 0 && selectedPlans.every(p => TRAINING_SCHEMES.includes(p.schemeId));
+  const compareState = (() => {
+    const n = selectedPlans.length;
+    if (n < 2) return { visible: false };
+    if (n > 3) return { visible: true, enabled: false, tooltip: 'Select at most 3 plans to compare.' };
+    if (!allTraining) return { visible: true, enabled: false, tooltip: 'Comparison is available for HCC / SBL / SLB plans only.' };
+    return { visible: true, enabled: true, tooltip: '' };
+  })();
+
+  // If we're in compare view but the selection becomes invalid (e.g. user deleted
+  // a plan), return to the list automatically.
+  React.useEffect(() => {
+    if (viewMode === 'compare' && !compareState.enabled) setViewMode('list');
+  }, [viewMode, compareState.enabled]);
+
   const usage = storageUsageRatio();
+
+  if (viewMode === 'compare' && compareState.enabled) {
+    return <ComparisonView plans={selectedPlans} onBack={() => setViewMode('list')} />;
+  }
 
   if (plans.length === 0) {
     return (
@@ -70,15 +93,21 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h3 style={{ margin: 0, color: '#1b5e20' }}>My Plans</h3>
-        <button disabled={selected.size < 2}
-          style={{
-            background: selected.size >= 2 ? '#1565c0' : '#eee',
-            color: selected.size >= 2 ? '#fff' : '#999',
-            border: 'none', borderRadius: 6, padding: '8px 16px',
-            fontSize: 13, fontWeight: 700, cursor: selected.size >= 2 ? 'pointer' : 'not-allowed',
-          }}>
-          Compare ({selected.size})
-        </button>
+        {compareState.visible && (
+          <button
+            disabled={!compareState.enabled}
+            title={compareState.tooltip}
+            onClick={() => compareState.enabled && setViewMode('compare')}
+            style={{
+              background: compareState.enabled ? '#1565c0' : '#eee',
+              color: compareState.enabled ? '#fff' : '#999',
+              border: 'none', borderRadius: 6, padding: '8px 16px',
+              fontSize: 13, fontWeight: 700,
+              cursor: compareState.enabled ? 'pointer' : 'not-allowed',
+            }}>
+            Compare ({selectedPlans.length})
+          </button>
+        )}
       </div>
 
       {usage > 0.9 && (
