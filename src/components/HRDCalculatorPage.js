@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CalculatorTab from './CalculatorTab';
+import MyPlansTab from './MyPlansTab';
 import { useACMData } from '../context/ACMDataContext';
 import milleniumLogo from '../assets/Millenium-removebg-preview.png';
 import auraLogo from '../assets/AURA-remove.png';
@@ -10,6 +11,7 @@ const AURA_WEBSITE_URL = 'https://www.milleniumrx.biz/product/aura/index.html';
 
 const TABS = [
     { id: 'calculator', label: 'Calculator', icon: '🧮' },
+    { id: 'plans', label: 'My Plans', icon: '💾' },
     { id: 'history', label: 'History', icon: '📋' },
     { id: 'reference', label: 'ACM Reference', icon: '📖' },
     { id: 'about', label: 'About', icon: 'ℹ️' },
@@ -260,6 +262,7 @@ const HRDCalculatorPage = () => {
             {/* Tab Content */}
             <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px 16px' }}>
                 {activeTab === 'calculator' && <CalculatorTab />}
+                {activeTab === 'plans' && <MyPlansTab onSwitchToCalculator={() => setActiveTab('calculator')} />}
                 {activeTab === 'history' && <HistoryTab />}
                 {activeTab === 'reference' && <ReferenceTab />}
                 {activeTab === 'about' && <AboutTab />}

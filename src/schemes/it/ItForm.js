@@ -3,6 +3,7 @@ import { calculateIt } from './calculateIt';
 import CostList from '../shared/CostList';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 // IT scheme rules (ACM Guide Jan 2026, section E).
 const IT_NOTES = [
@@ -18,12 +19,13 @@ const IT_NOTES = [
   'Webcam and internet connection subscription (first year only) are required as part of the equipment to support online learning. Internet subscription submission can be made monthly or as a one-off yearly basis.',
 ];
 
-export default function ItForm() {
+export default function ItForm({ initialPlan } = {}) {
   const [computers, setComputers] = useState([{ description: '', qty: '', unitCost: '' }]);
   const [webcam, setWebcam] = useState('');
   const [internetSubscription, setInternetSubscription] = useState('');
   const [lastApplicationDate, setLastApplicationDate] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { computers: setComputers, webcam: setWebcam, internetSubscription: setInternetSubscription, lastApplicationDate: setLastApplicationDate });
 
   const calculate = () => setResult(calculateIt({ computers, webcam, internetSubscription, lastApplicationDate }));
 
@@ -62,7 +64,7 @@ export default function ItForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="it" schemeLabel="IT — Computer-Aided Training" result={result} />
+      <PurchaseResult schemeId="it" schemeLabel="IT — Computer-Aided Training" result={result} inputs={{ computers, webcam, internetSubscription, lastApplicationDate }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

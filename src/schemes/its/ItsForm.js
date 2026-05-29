@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { calculateIts } from './calculateIts';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 // ITS scheme rules (ACM Guide Jan 2026, section G).
 const ITS_NOTES = [
@@ -12,14 +13,15 @@ const ITS_NOTES = [
   'Employers must have no legal issues with HRD Corp to apply for financial assistance.',
 ];
 
-export default function ItsForm() {
+export default function ItsForm({ initialPlan } = {}) {
   const [levyBalance, setLevyBalance] = useState('');
   const [numberOfInterns, setNumberOfInterns] = useState('');
   const [monthlyAllowance, setMonthlyAllowance] = useState('');
   const [months, setMonths] = useState('');
   const [ppePerIntern, setPpePerIntern] = useState('');
   const [insurancePerIntern, setInsurancePerIntern] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { levyBalance: setLevyBalance, numberOfInterns: setNumberOfInterns, monthlyAllowance: setMonthlyAllowance, months: setMonths, ppePerIntern: setPpePerIntern, insurancePerIntern: setInsurancePerIntern });
 
   const calculate = () => setResult(calculateIts({ levyBalance, numberOfInterns, monthlyAllowance, months, ppePerIntern, insurancePerIntern }));
 
@@ -66,7 +68,7 @@ export default function ItsForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="its" schemeLabel="ITS — Industrial Training Scheme" result={result} />
+      <PurchaseResult schemeId="its" schemeLabel="ITS — Industrial Training Scheme" result={result} inputs={{ levyBalance, numberOfInterns, monthlyAllowance, months, ppePerIntern, insurancePerIntern }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import React from 'react';
 import { exportResultPDF } from '../../utils/pdfExportWeb';
+import SavePlanModal from '../../components/SavePlanModal';
+import { savePlan, updatePlan } from '../../utils/savedPlans';
 
 const saveHistory = (schemeId, schemeLabel, result) => {
   try {
@@ -18,7 +20,8 @@ const saveHistory = (schemeId, schemeLabel, result) => {
   } catch {}
 };
 
-export default function PurchaseResult({ schemeId, schemeLabel, result }) {
+export default function PurchaseResult({ schemeId, schemeLabel, result, inputs, fromPlanId, fromPlanName, onSaved }) {
+  const [saveOpen, setSaveOpen] = React.useState(false);
   React.useEffect(() => { if (result) saveHistory(schemeId, schemeLabel, result); }, [result, schemeId, schemeLabel]);
   if (!result) return null;
 
@@ -91,6 +94,29 @@ export default function PurchaseResult({ schemeId, schemeLabel, result }) {
         style={{ display: 'block', width: '100%', marginTop: '16px', padding: '14px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
         Export as PDF
       </button>
+
+      <button onClick={() => setSaveOpen(true)}
+        style={{ display: 'block', width: '100%', marginTop: '10px', padding: '14px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
+        💾 Save as Plan
+      </button>
+
+      <SavePlanModal
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        schemeLabel={schemeLabel}
+        fromPlanName={fromPlanName}
+        onCreate={(name) => {
+          const p = savePlan({ name, schemeId, schemeLabel, inputs: inputs || {}, resultSnapshot: result });
+          setSaveOpen(false);
+          if (onSaved) onSaved(p);
+        }}
+        onUpdate={(name) => {
+          if (!fromPlanId) return;
+          const p = updatePlan(fromPlanId, { name, inputs: inputs || {}, resultSnapshot: result });
+          setSaveOpen(false);
+          if (onSaved) onSaved(p);
+        }}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { calculateSgm } from './calculateSgm';
 import PurchaseResult from '../shared/PurchaseResult';
 import { iStyle, lStyle, rStyle, primaryBtn } from '../shared/styles';
+import usePlanSeed from '../shared/usePlanSeed';
 
 // SGM scheme rules (ACM Guide Jan 2026, section L).
 const SGM_NOTES = [
@@ -12,11 +13,12 @@ const SGM_NOTES = [
   'Employers must have no legal issues with HRD Corp to apply for financial assistance.',
 ];
 
-export default function SgmForm() {
+export default function SgmForm({ initialPlan } = {}) {
   const [levyBalance, setLevyBalance] = useState('');
   const [numberOfGraduates, setNumberOfGraduates] = useState('');
   const [monthlySalary, setMonthlySalary] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
+  usePlanSeed(initialPlan, { levyBalance: setLevyBalance, numberOfGraduates: setNumberOfGraduates, monthlySalary: setMonthlySalary });
 
   const calculate = () => setResult(calculateSgm({ levyBalance, numberOfGraduates, monthlySalary }));
 
@@ -52,7 +54,7 @@ export default function SgmForm() {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="sgm" schemeLabel="SGM — Skim Graduan Madani" result={result} />
+      <PurchaseResult schemeId="sgm" schemeLabel="SGM — Skim Graduan Madani" result={result} inputs={{ levyBalance, numberOfGraduates, monthlySalary }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }
