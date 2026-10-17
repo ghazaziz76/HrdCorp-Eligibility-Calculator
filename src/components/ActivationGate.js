@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { fetchAccess, clearStoredActivation, LOCKED_MESSAGE } from '../utils/tgeAccess';
 
 const API_BASE = window.location.origin;
 
@@ -25,10 +26,41 @@ const ActivationGate = ({ children }) => {
             return;
         }
         const token = localStorage.getItem('hrd_activation_token');
+        const storedCode = localStorage.getItem('hrd_activation_code');
         if (token) {
             setActivated(true);
         }
         setChecking(false);
+
+        // Re-check the stored code against the server. A locked code is
+        // removed and the gate is shown again. A network error keeps the
+        // current state.
+        let cancelled = false;
+        const lockOut = () => {
+            clearStoredActivation();
+            setActivated(false);
+            setError(LOCKED_MESSAGE);
+        };
+        (async () => {
+            if (storedCode) {
+                const access = await fetchAccess(storedCode);
+                if (!cancelled && access && access.tge === 'locked') lockOut();
+            } else if (token) {
+                // Legacy QR activation: recover and store the code.
+                try {
+                    const res = await fetch(
+                        `${API_BASE}/api/employer/check-session?session_token=${encodeURIComponent(token)}`
+                    );
+                    if (cancelled) return;
+                    if (res.status === 403) { lockOut(); return; }
+                    const data = await res.json();
+                    if (!cancelled && data.success && data.data && data.data.code) {
+                        localStorage.setItem('hrd_activation_code', data.data.code);
+                    }
+                } catch {}
+            }
+        })();
+        return () => { cancelled = true; };
     }, []);
 
     // Cleanup polling on unmount
@@ -90,10 +122,19 @@ const ActivationGate = ({ children }) => {
                         const check = await fetch(
                             `${API_BASE}/api/employer/check-session?session_token=${data.data.session_token}`
                         );
+                        if (check.status === 403) {
+                            clearInterval(pollRef.current);
+                            stopQrSession();
+                            setError(LOCKED_MESSAGE);
+                            return;
+                        }
                         const result = await check.json();
                         if (result.success) {
                             clearInterval(pollRef.current);
                             localStorage.setItem('hrd_activation_token', data.data.session_token);
+                            if (result.data && result.data.code) {
+                                localStorage.setItem('hrd_activation_code', result.data.code);
+                            }
                             setActivated(true);
                         }
                     } catch {}

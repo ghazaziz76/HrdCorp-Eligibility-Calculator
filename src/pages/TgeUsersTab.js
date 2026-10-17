@@ -37,7 +37,6 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
         } catch (e) {
             showMsg(`Could not load TGE users: ${e.message}`, true);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pw]);
 
     React.useEffect(() => { load(); }, [load]);

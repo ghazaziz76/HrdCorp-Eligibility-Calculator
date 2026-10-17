@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CalculatorTab from './CalculatorTab';
+import AiAllowance from './AiAllowance';
 import MyPlansTab from './MyPlansTab';
 import { useACMData } from '../context/ACMDataContext';
 import milleniumLogo from '../assets/Millenium-removebg-preview.png';
@@ -269,6 +270,11 @@ const HRDCalculatorPage = () => {
                 {activeTab === 'history' && <HistoryTab />}
                 {activeTab === 'reference' && <ReferenceTab />}
                 {activeTab === 'about' && <AboutTab />}
+            </div>
+
+            {/* No footer exists: allowance + "Have a different code?" sit under the content */}
+            <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 16px 24px', textAlign: 'center' }}>
+                <AiAllowance code={localStorage.getItem('hrd_activation_code')} />
             </div>
 
             {/* Floating Feedback Button */}
