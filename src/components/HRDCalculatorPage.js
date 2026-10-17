@@ -301,7 +301,7 @@ const HRDCalculatorPage = () => {
                         <div style={{ background: 'linear-gradient(135deg, #1a237e, #283593)', color: 'white', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '700' }}>Share Your Feedback</h3>
-                                <p style={{ margin: '2px 0 0', fontSize: '12px', opacity: 0.8 }}>Help us improve the HRD Corp Calculator</p>
+                                <p style={{ margin: '2px 0 0', fontSize: '12px', opacity: 0.8 }}>Help us improve the Training Grant Estimator</p>
                             </div>
                             <button onClick={() => setFeedbackOpen(false)}
                                 style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', borderRadius: '50%', width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', lineHeight: '1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

@@ -168,7 +168,7 @@ const ActivationGate = ({ children }) => {
             <div style={{ background: '#fff', borderRadius: '16px', padding: '40px', maxWidth: '480px', width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
                 <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                     <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔐</div>
-                    <h2 style={{ margin: '0 0 8px', color: '#1b5e20', fontSize: '22px' }}>Activate HRD Grant Calculator</h2>
+                    <h2 style={{ margin: '0 0 8px', color: '#1b5e20', fontSize: '22px' }}>Activate Training Grant Estimator</h2>
                     <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
                         Purchase the app on Google Play, then enter your activation code here.
                     </p>
@@ -285,7 +285,7 @@ const ActivationGate = ({ children }) => {
                         Don't have a code?
                     </p>
                     <p style={{ fontSize: '12px', color: '#999', margin: 0 }}>
-                        Download the HRD Grant Calculator from Google Play. Your activation code will be generated after purchase.
+                        Download the Training Grant Estimator from Google Play. Your activation code will be generated after purchase.
                     </p>
                 </div>
             </div>

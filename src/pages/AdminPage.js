@@ -148,7 +148,7 @@ export default function AdminPage() {
                     <div style={{ textAlign: 'center', marginBottom: '28px' }}>
                         <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔐</div>
                         <h2 style={{ margin: 0, color: '#1b5e20', fontSize: '20px' }}>Admin Login</h2>
-                        <p style={{ color: '#888', fontSize: '12px', margin: '6px 0 0' }}>HRD Corp Calculator — ACM Management</p>
+                        <p style={{ color: '#888', fontSize: '12px', margin: '6px 0 0' }}>Training Grant Estimator — Admin</p>
                     </div>
                     <label style={lStyle}>Password</label>
                     <input type="password" style={{ ...iStyle, marginBottom: '16px' }}
@@ -181,7 +181,7 @@ export default function AdminPage() {
             <div style={{ background: '#1b5e20', color: '#fff', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                     <h2 style={{ margin: 0, fontSize: '18px' }}>⚙️ ACM Admin Panel</h2>
-                    <p style={{ margin: '2px 0 0', fontSize: '11px', opacity: 0.8 }}>Millenium Resource Ltd — HRD Corp Calculator</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '11px', opacity: 0.8 }}>Millenium Resource Ltd — Training Grant Estimator</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     {msg && (
