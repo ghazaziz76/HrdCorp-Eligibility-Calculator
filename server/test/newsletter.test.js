@@ -1,6 +1,8 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
 const crypto = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
 const { startTestServer, signedPost } = require('./helpers');
 
 let srv;
@@ -147,4 +149,23 @@ test('impossible anchor_date → 400', async () => {
         const r = await signedPost(srv.base, P, base({ email: 'bad@b.com', anchor_date: d }));
         assert.strictEqual(r.status, 400, d);
     }
+});
+
+test('deleted accounts are scrubbed: lookup and create-by-email never match the old entry', async () => {
+    const email = 'gone@b.com';
+    const c1 = await (await signedPost(srv.base, P, base({ email, name: 'Gone' }))).json();
+    const code = c1.data.code;
+    const d = await (await signedPost(srv.base, P, base({
+        code, email, name: 'Gone', status: 'deleted', plan_source: 'none', paying: false, locked_reason: 'deleted',
+    }))).json();
+    assert.strictEqual(d.data.access.tge, 'locked');
+    const entry = JSON.parse(fs.readFileSync(path.join(srv.dataDir, 'activation-codes.json'), 'utf8')).find(c => c.code === code);
+    assert.strictEqual(entry.email, '');
+    assert.strictEqual(entry.name, '');
+    assert.strictEqual(entry.newsletter.locked_reason, 'deleted');
+    const look = await (await signedPost(srv.base, '/api/newsletter/entitlements/lookup', { emails: [email] })).json();
+    assert.deepStrictEqual(look.data, {});
+    const again = await (await signedPost(srv.base, P, base({ email, name: 'Back' }))).json();
+    assert.strictEqual(again.data.created, true);
+    assert.notStrictEqual(again.data.code, code);
 });

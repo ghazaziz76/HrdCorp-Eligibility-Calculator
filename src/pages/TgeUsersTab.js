@@ -9,7 +9,13 @@ const btn = (bg) => ({ background: bg, color: '#fff', border: 'none', padding: '
 
 const aiValue = (v) => (v === true ? 'on' : v === false ? 'off' : 'auto');
 const fmtDate = (s) => (s ? String(s).slice(0, 10) : '');
-const fmtTime = (s) => (s ? String(s).replace('T', ' ').slice(0, 16) : 'never');
+// Malaysia wall-clock time (UTC+8, no DST), "YYYY-MM-DD HH:mm".
+const fmtTime = (s) => {
+    if (!s) return 'never';
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return String(s);
+    return new Date(d.getTime() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 16);
+};
 const usd = (n) => `$${Number(n || 0).toFixed(2)}`;
 
 export default function TgeUsersTab({ adminHeader, showMsg }) {

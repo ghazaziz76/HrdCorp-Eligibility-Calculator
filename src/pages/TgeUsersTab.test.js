@@ -146,3 +146,9 @@ test('a blank cost field does not POST and calls showMsg', async () => {
     expect(posts().length).toBe(0);
     expect(showMsg).toHaveBeenCalledWith(expect.stringMatching(/blank/i), true);
 });
+
+test('Last used renders in Malaysia time (UTC+8)', async () => {
+    await render(listBody({ users: [row({ last_used_at: '2026-10-16T20:30:00.000Z' })] }));
+    const tr = container.querySelector('tbody tr');
+    expect(tr.textContent).toContain('2026-10-17 04:30');
+});

@@ -154,6 +154,11 @@ test('anchorFor: newsletter and play', () => {
   assert.equal(E.anchorFor(play({ purchase_date: '2026-08-15T12:00:00Z' })), '2026-08-15');
 });
 
+test('anchorFor: Play anchor from an instant is the MYT date', () => {
+  assert.equal(E.anchorFor({ ...play({ purchase_date: null }), registered_at: '2026-10-16T20:00:00Z' }), '2026-10-17');
+  assert.equal(E.anchorFor(play({ purchase_date: '2026-10-16T20:00:00Z' })), '2026-10-17');
+});
+
 test('periodStart clamps: anchor 2026-01-31', () => {
   assert.equal(E.periodStart('2026-01-31', new Date('2026-02-28T05:00:00+08:00')), '2026-02-28');
   assert.equal(E.periodStart('2026-01-31', new Date('2026-02-27T05:00:00+08:00')), '2026-01-31');

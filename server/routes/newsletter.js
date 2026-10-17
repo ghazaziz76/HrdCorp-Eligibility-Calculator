@@ -116,6 +116,11 @@ router.post('/entitlement', (req, res) => {
         refunded_at: b.refunded_at || null,
         anchor_date: b.anchor_date || null,
     };
+    if (b.status === 'deleted' || locked === 'deleted') {
+        // Locked and anonymised: lookup and create-by-email can never match this entry again.
+        entry.email = '';
+        entry.name = '';
+    }
     entry.synced_at = now.toISOString();
     writeCodes(codes);
 

@@ -71,7 +71,11 @@ const isNewsletter = (entry) => entry.source === 'newsletter';
 function anchorFor(entry) {
   if (isNewsletter(entry)) return (entry.newsletter && entry.newsletter.anchor_date) || null;
   const p = entry.play || {};
-  return String(p.purchase_date || entry.registered_at || '').slice(0, 10) || null;
+  const v = p.purchase_date || entry.registered_at;
+  if (!v) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? (String(v).slice(0, 10) || null) : myDay(d);
 }
 
 function computeAccess(entry, usage, ctx) {
