@@ -22,7 +22,12 @@ const saveHistory = (schemeId, schemeLabel, result) => {
 
 export default function PurchaseResult({ schemeId, schemeLabel, result, inputs, fromPlanId, fromPlanName, onSaved }) {
   const [saveOpen, setSaveOpen] = React.useState(false);
-  React.useEffect(() => { if (result) saveHistory(schemeId, schemeLabel, result); }, [result, schemeId, schemeLabel]);
+  // The result we were mounted with is a saved plan's snapshot (or null), not a new
+  // calculation — only log results produced after that, i.e. by pressing Calculate.
+  const mountedResult = React.useRef(result);
+  React.useEffect(() => {
+    if (result && result !== mountedResult.current) saveHistory(schemeId, schemeLabel, result);
+  }, [result, schemeId, schemeLabel]);
   if (!result) return null;
 
   return (
@@ -90,7 +95,7 @@ export default function PurchaseResult({ schemeId, schemeLabel, result, inputs, 
         </div>
       )}
 
-      <button onClick={() => exportResultPDF(result, { scheme: schemeId, trainingType: schemeLabel, totalPax: 0 })}
+      <button onClick={() => exportResultPDF(result, { scheme: schemeId, trainingType: schemeLabel })}
         style={{ display: 'block', width: '100%', marginTop: '16px', padding: '14px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
         Export as PDF
       </button>

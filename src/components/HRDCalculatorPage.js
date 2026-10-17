@@ -3,12 +3,20 @@ import CalculatorTab from './CalculatorTab';
 import AiAllowance from './AiAllowance';
 import MyPlansTab from './MyPlansTab';
 import { useACMData } from '../context/ACMDataContext';
+import { buildAcmReference, editionsLine } from '../data/acm-rules';
 import milleniumLogo from '../assets/Millenium-removebg-preview.png';
 import auraLogo from '../assets/AURA-remove.png';
 import appIcon from '../assets/app-icon.png';
 
 const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfYgJEpz_b9HthuFVrAv_3Ep7q2YtXTusQlD7ZUEzvhIHXpqg/viewform?usp=dialog';
 const AURA_WEBSITE_URL = 'https://www.milleniumrx.biz/product/aura/index.html';
+
+// On the website the app lives at /product/calculator/desktop/ and only that prefix is
+// proxied to it, so a bare /admin would leave the app. Keep the admin link under the
+// prefix the page was opened from (the router serves /product/calculator/desktop/admin).
+const WEBSITE_BASE = '/product/calculator/desktop';
+export const adminHref = (pathname = '') =>
+    pathname.startsWith(WEBSITE_BASE) ? `${WEBSITE_BASE}/admin` : '/admin';
 
 const TABS = [
     { id: 'calculator', label: 'Calculator', icon: '🧮' },
@@ -115,10 +123,31 @@ const HistoryTab = () => {
 };
 
 // ── ACM Reference Tab ───────────────────────────────────
-const ReferenceTab = () => {
-    const { version, reload } = useACMData() || {};
-    const [syncing, setSyncing] = useState(false);
+// Content comes from data/acm-rules.js (plain data, shared with the Android app),
+// built from the live rates when the server sent them, else from acm-rates.js.
+const cellStyle = { padding: '8px 10px', fontSize: '12px', color: '#444', borderBottom: '1px solid #f0f0f0', verticalAlign: 'top', lineHeight: '1.5' };
 
+// Keep a section whole when its title matches; otherwise keep only matching rows / notes.
+const filterSections = (sections, query) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sections;
+    const hit = (t) => String(t).toLowerCase().includes(q);
+    return sections.map(s => {
+        if (hit(s.title)) return s;
+        const rows = s.rows.filter(r => r.some(hit));
+        const notes = (s.notes || []).filter(hit);
+        return rows.length || notes.length || (s.intro && hit(s.intro)) ? { ...s, rows, notes } : null;
+    }).filter(Boolean);
+};
+
+const ReferenceTab = () => {
+    const { rates, version, reload } = useACMData() || {};
+    const [syncing, setSyncing] = useState(false);
+    const [query, setQuery] = useState('');
+    const sections = React.useMemo(() => buildAcmReference(rates), [rates]);
+    const shown = filterSections(sections, query);
+
+    // Re-fetches the live rates, documents and editions from the server.
     const handleSync = async () => {
         setSyncing(true);
         try { reload?.(); } catch {}
@@ -127,23 +156,52 @@ const ReferenceTab = () => {
 
     return (
         <div>
-            <h3 style={{ color: '#1b5e20', marginBottom: '16px' }}>ACM Reference</h3>
-            <div style={{ background: '#fff', borderRadius: '10px', padding: '20px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                <h4 style={{ margin: '0 0 8px', color: '#333' }}>ACM Data</h4>
-                {version && (
-                    <>
-                        <p style={{ margin: '4px 0', fontSize: '13px', color: '#555' }}>Guide Edition: {version.acm_guide_edition || '—'}</p>
-                        <p style={{ margin: '4px 0', fontSize: '13px', color: '#555' }}>Table Edition: {version.acm_table_edition || '—'}</p>
-                    </>
-                )}
+            <h3 style={{ color: '#1b5e20', marginBottom: '8px' }}>ACM Reference</h3>
+            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 16px', lineHeight: '1.6' }}>
+                The rates and key rules the calculator uses, per training type. Based on the {editionsLine(version)}.
+                HRD Corp may revise these at any time — verify with HRD Corp before you submit.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <input type="search" value={query} onChange={e => setQuery(e.target.value)}
+                    placeholder="Search the reference (e.g. meal, ROT, air ticket)" aria-label="Search the ACM reference"
+                    style={{ flex: '1 1 260px', padding: '9px 12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px' }} />
                 <button onClick={handleSync} disabled={syncing}
-                    style={{ marginTop: '14px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', opacity: syncing ? 0.7 : 1 }}>
+                    style={{ background: '#2e7d32', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', opacity: syncing ? 0.7 : 1 }}>
                     {syncing ? 'Checking...' : 'Check for Updates'}
                 </button>
             </div>
-            <div style={{ background: '#fff', borderRadius: '10px', padding: '40px', textAlign: 'center', border: '1px dashed #e0e0e0' }}>
-                <p style={{ fontSize: '14px', color: '#999' }}>ACM rates table will be displayed here</p>
-            </div>
+            {shown.length === 0 && (
+                <p style={{ fontSize: '13px', color: '#999', textAlign: 'center', padding: '30px 0' }}>Nothing matches “{query}”.</p>
+            )}
+            {shown.map(s => (
+                <div key={s.id} data-section={s.id} style={{ background: '#fff', borderRadius: '10px', padding: '18px 20px', marginBottom: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    <h4 style={{ margin: '0 0 8px', color: '#1b5e20', fontSize: '15px' }}>{s.title}</h4>
+                    {s.intro && <p style={{ fontSize: '12px', color: '#555', margin: '0 0 10px', lineHeight: '1.6' }}>{s.intro}</p>}
+                    {s.rows.length > 0 && (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ background: '#f1f8e9' }}>
+                                        {s.columns.map(c => <th key={c} style={{ ...cellStyle, textAlign: 'left', color: '#2e7d32', fontWeight: '700' }}>{c}</th>)}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {s.rows.map((r, i) => (
+                                        <tr key={i}>
+                                            {r.map((cell, j) => <td key={j} style={{ ...cellStyle, fontWeight: j === 0 ? '600' : '400', color: j === 0 ? '#333' : '#555', minWidth: j === 0 ? '140px' : '160px' }}>{cell}</td>)}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                    {s.notes && s.notes.length > 0 && (
+                        <ul style={{ margin: '10px 0 0', padding: '0 0 0 18px' }}>
+                            {s.notes.map((n, i) => <li key={i} style={{ fontSize: '12px', color: '#555', marginBottom: '4px', lineHeight: '1.6' }}>{n}</li>)}
+                        </ul>
+                    )}
+                </div>
+            ))}
         </div>
     );
 };
@@ -156,7 +214,7 @@ const AboutTab = () => (
             <h4 style={{ margin: '0 0 8px', color: '#333' }}>Training Grant Estimator</h4>
             <p style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>
                 Calculate your HRD Corp training grant eligibility based on the latest Allowable Cost Matrix (ACM).
-                Supports SBL, HCC, and SLB schemes.
+                Supports 9 schemes: HCC, SBL, SLB, ALAT, IT, ITS, FWT, OJT and SGM.
             </p>
             <p style={{ fontSize: '11px', color: '#999', marginTop: '8px' }}>Version 1.0.0</p>
         </div>
@@ -169,9 +227,7 @@ const AboutTab = () => (
             </a>
             <div>
                 <p style={{ fontSize: '12px', fontWeight: '600', color: '#333', marginBottom: '6px' }}>Register with AURA to get:</p>
-                <p style={{ fontSize: '12px', color: '#555', margin: '3px 0' }}>  All schemes unlocked</p>
                 <p style={{ fontSize: '12px', color: '#555', margin: '3px 0' }}>  TNA (Training Needs Analysis) tools</p>
-                <p style={{ fontSize: '12px', color: '#555', margin: '3px 0' }}>  Many more schemes (ALAT, IT, CBT, FWT, etc.)</p>
             </div>
         </div>
 
@@ -215,7 +271,7 @@ const HRDCalculatorPage = () => {
                     </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <a href="/admin" style={{ color: 'white', textDecoration: 'none', fontSize: '13px', background: 'rgba(255,255,255,0.12)', padding: '7px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.25)' }}>
+                    <a href={adminHref(window.location.pathname)} style={{ color: 'white', textDecoration: 'none', fontSize: '13px', background: 'rgba(255,255,255,0.12)', padding: '7px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.25)' }}>
                         Admin
                     </a>
                 </div>

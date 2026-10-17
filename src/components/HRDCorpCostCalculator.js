@@ -300,6 +300,31 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                 Based on HRDCorp Allowable Cost Matrix (ACM). Calculates maximum claimable cost per training.
             </p>
 
+            {/* ── DISCLAIMER ───────────────────────────────────────── */}
+            <div style={{ background: '#fffde7', border: '1px solid #f9a825', borderRadius: '10px', padding: '18px 22px', marginBottom: '20px' }}>
+                <p style={{ fontWeight: '700', fontSize: '12px', color: '#e65100', margin: '0 0 10px' }}>⚠️ DISCLAIMER — Please Read Before Use</p>
+                <ol style={{ margin: 0, padding: '0 0 0 18px' }}>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        All calculations in this tool are based on the <strong>HRD Corp Allowable Cost Matrix (ACM) Guide — {guideEdition} Edition</strong> and the <strong>ACM Table — {tableEdition} Edition</strong>. Figures may not reflect subsequent revisions issued by HRD Corp.
+                    </li>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        All results are <strong>estimates only</strong>. Actual claimable amounts are subject to HRD Corp's review, verification, and final approval at the time of grant submission and claim.
+                    </li>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        This calculator is <strong>not an official HRD Corp tool</strong>. It is an independent initiative by <strong>Millenium Resource Ltd</strong> to assist registered employers in estimating HRD Corp claimable costs. It does not constitute professional or legal advice.
+                    </li>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        <strong>HRD Corp may revise</strong> the ACM, allowable rates, eligibility conditions, and document requirements at any time without prior notice. Users are advised to verify all figures with HRD Corp or a certified HRD Corp consultant before submitting any grant application.
+                    </li>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        It is the <strong>employer's sole responsibility</strong> to ensure all grant submissions comply with HRD Corp requirements. Millenium Resource Ltd is not liable for any grant rejection, underclaim, overclaim, or audit findings arising from the use of this calculator.
+                    </li>
+                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
+                        <strong>Your data stays in this browser.</strong> All calculations are performed locally in your browser. Your inputs, saved plans and history are kept in this browser only and are not sent to Millenium Resource Ltd or any third party — except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.
+                    </li>
+                </ol>
+            </div>
+
             {/* ── STEP 1: SCHEME SELECTION ──────────────────────── */}
             <div style={{ background: '#e8f5e9', border: '2px solid #2e7d32', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
                 <h4 style={{ margin: '0 0 12px', color: '#1b5e20' }}>Step 1 — Select Scheme</h4>
@@ -328,31 +353,6 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         </div>
                     ))}
                 </div>
-            </div>
-
-            {/* ── DISCLAIMER ───────────────────────────────────────── */}
-            <div style={{ background: '#fffde7', border: '1px solid #f9a825', borderRadius: '10px', padding: '18px 22px', marginBottom: '20px' }}>
-                <p style={{ fontWeight: '700', fontSize: '12px', color: '#e65100', margin: '0 0 10px' }}>⚠️ DISCLAIMER — Please Read Before Use</p>
-                <ol style={{ margin: 0, padding: '0 0 0 18px' }}>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        All calculations in this tool are based on the <strong>HRD Corp Allowable Cost Matrix (ACM) Guide — {guideEdition} Edition</strong> and the <strong>ACM Table — {tableEdition} Edition</strong>. Figures may not reflect subsequent revisions issued by HRD Corp.
-                    </li>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        All results are <strong>estimates only</strong>. Actual claimable amounts are subject to HRD Corp's review, verification, and final approval at the time of grant submission and claim.
-                    </li>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        This calculator is <strong>not an official HRD Corp tool</strong>. It is an independent initiative by <strong>Millenium Resource Ltd</strong> to assist registered employers in estimating HRD Corp claimable costs. It does not constitute professional or legal advice.
-                    </li>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        <strong>HRD Corp may revise</strong> the ACM, allowable rates, eligibility conditions, and document requirements at any time without prior notice. Users are advised to verify all figures with HRD Corp or a certified HRD Corp consultant before submitting any grant application.
-                    </li>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        It is the <strong>employer's sole responsibility</strong> to ensure all grant submissions comply with HRD Corp requirements. Millenium Resource Ltd is not liable for any grant rejection, underclaim, overclaim, or audit findings arising from the use of this calculator.
-                    </li>
-                    <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        <strong>No data entered into this calculator is stored or transmitted.</strong> All calculations are performed locally in your browser. No information is shared with Millenium Resource Ltd or any third party. Except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.
-                    </li>
-                </ol>
             </div>
 
             {/* ── REST OF FORM (only shown after scheme is chosen) ── */}
@@ -929,7 +929,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
                     {/* Export PDF Button */}
                     <button
-                        onClick={() => exportResultPDF(result, { scheme, trainingType, totalPax })}
+                        onClick={() => exportResultPDF(result, { scheme, trainingType, totalPax, trainingProgrammeName })}
                         style={{
                             display: 'block', width: '100%', marginTop: '16px', padding: '14px',
                             background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px',

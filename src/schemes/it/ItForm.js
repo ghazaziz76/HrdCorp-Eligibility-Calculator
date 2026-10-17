@@ -64,7 +64,7 @@ export default function ItForm({ initialPlan } = {}) {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="it" schemeLabel="IT — Computer-Aided Training" result={result} inputs={{ computers, webcam, internetSubscription, lastApplicationDate }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
+      <PurchaseResult schemeId="it" schemeLabel="IT — Information Technology & Computer-Aided Training" result={result} inputs={{ computers, webcam, internetSubscription, lastApplicationDate }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

@@ -74,6 +74,7 @@ export function comparePlans(plans) {
     name: p.name || '(Untitled)',
     schemeId: p.schemeId,
     schemeLabel: p.schemeLabel,
+    programmeName: String(p.inputs?.trainingProgrammeName || '').trim(),
     subtitle: subtitleFor(p.inputs),
   }));
 

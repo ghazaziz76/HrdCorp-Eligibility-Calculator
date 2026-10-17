@@ -9,6 +9,7 @@ const FWT_NOTES = [
   'Each training session must be at least 4 hours. Maximum training period is 1 year.',
   'In-house: minimum 2 trainees; maximum 25 (technical) or 50 (soft skills) PER trainer/group — the number of trainers is set automatically from the trainees. Public certification: minimum 1, no maximum. General public: minimum 1, maximum 9.',
   'In-house internal trainer allowance: RM1,400/full day or RM800/half day per group. In-house external training-provider course fee is capped at RM10,500/full day or RM6,000/half day per group (prorated if a group has fewer than 5 trainees).',
+  'Public Certification: course fee as charged per pax. General Public: ACM rate RM1,750/pax/day (full) or RM1,000/pax/half-day, computed automatically.',
   'Short programmes (under 1 month): claim EITHER the trainee daily allowance (RM250/day under 100km, RM500/day 100km+, or actual paid — whichever is lower) OR the meal allowance (RM100/day per trainee) — not both.',
   'Longer programmes (over 1 month): trainees’ monthly allowance is paid by the employer. The salary offered on employment must be at least the monthly allowance paid during training; the claim is based on whichever is lower.',
   'Employers must have no legal issues with HRD Corp to apply.',

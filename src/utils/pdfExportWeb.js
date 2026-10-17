@@ -2,9 +2,31 @@
 // Uses browser print dialog to generate PDF
 
 const formatRM = (amount) => `RM ${Number(amount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// HTML-escape everything we insert: plan names, programme names, employer / branch
+// labels and notes are user-typed and would otherwise be parsed as markup.
+export const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const buildHTML = (result, meta = {}) => {
-    const { scheme = '', trainingType = '', totalPax = 0 } = meta;
+const TRAINING_TYPE_LABELS = {
+    inhouse: 'In-House', rot_inhouse: 'ROT (In-House)', coaching_mentoring: 'Coaching & Mentoring',
+    rot_public: 'ROT (Public)', public: 'Public', seminar_conference: 'Seminar & Conference',
+    elearning: 'E-Learning', mobile_elearning: 'Mobile E-Learning',
+    overseas: 'Overseas', overseas_seminar: 'Overseas Seminar & Conference', development: 'Development Programme',
+};
+const trainingTypeLabel = (t) => TRAINING_TYPE_LABELS[t] || String(t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+const docList = (docs) => `<ol>${(docs || []).map(doc => {
+    const subItems = doc.subItems && doc.subItems.length > 0
+        ? `<ul>${doc.subItems.map(s => `<li>${esc(s)}</li>`).join('')}</ul>`
+        : '';
+    return `<li>${esc(doc.text)}${subItems}</li>`;
+}).join('')}</ol>`;
+
+// meta: { scheme, trainingType, totalPax, trainingProgrammeName, planName }
+// totalPax null/undefined → the participants box is left out (purchase / allowance schemes).
+export const buildHTML = (result, meta = {}) => {
+    const { scheme = '', trainingType = '', totalPax = null, trainingProgrammeName = '', planName = '' } = meta;
+    const programmeName = String(trainingProgrammeName || '').trim();
+    const plan = String(planName || '').trim();
     const now = new Date().toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     const itemRows = result.items.map((row, i) => {
@@ -17,17 +39,17 @@ const buildHTML = (result, meta = {}) => {
         const subRows = (row.perCompany && row.perCompany.length > 1)
             ? row.perCompany.map(pc => `
                 <tr class="sub-row">
-                    <td style="padding-left:30px;color:#666;font-size:11px;">&#8627; ${pc.label}</td>
-                    <td style="color:#666;font-size:11px;">${pc.note || ''}</td>
+                    <td style="padding-left:30px;color:#666;font-size:11px;">&#8627; ${esc(pc.label)}</td>
+                    <td style="color:#666;font-size:11px;">${esc(pc.note)}</td>
                     <td style="text-align:right;color:#666;font-size:11px;">${formatRM(pc.amount)}</td>
                 </tr>`).join('')
             : '';
 
-        const noteStr = row.note || '';
+        const noteStr = esc(row.note);
 
         return `
             <tr style="background:${i % 2 === 0 ? '#fff' : '#fafafa'}">
-                <td style="font-weight:600;">${row.label}${row.isEstimate ? ' <span style="color:#f57c00;font-size:10px;background:#fff3e0;padding:1px 5px;border-radius:3px;">est.</span>' : ''}</td>
+                <td style="font-weight:600;">${esc(row.label)}${row.isEstimate ? ' <span style="color:#f57c00;font-size:10px;background:#fff3e0;padding:1px 5px;border-radius:3px;">est.</span>' : ''}</td>
                 <td style="color:#666;font-size:11px;">${noteStr}</td>
                 <td style="text-align:right;font-weight:600;">${amountStr}</td>
             </tr>
@@ -38,22 +60,21 @@ const buildHTML = (result, meta = {}) => {
         ? `<div class="info-box">&#9992; Air Ticket: <strong>${result.airTicketEntitled} person(s)</strong> entitled — submit actual airfare cost with ticket stub / e-Ticket / travel agent invoice.</div>`
         : '';
 
+    // Purchase / allowance schemes also return claimSubmission docs (shown on screen too).
+    const claimDocs = result.supportingDocs?.claimSubmission || [];
     const docsSection = result.supportingDocs
         ? `<div class="docs-section">
-            <h3>&#128196; Supporting Documents Required</h3>
-            <ol>${result.supportingDocs.grantSubmission.map(doc => {
-                const subItems = doc.subItems && doc.subItems.length > 0
-                    ? `<ul>${doc.subItems.map(s => `<li>${s}</li>`).join('')}</ul>`
-                    : '';
-                return `<li>${doc.text}${subItems}</li>`;
-            }).join('')}</ol>
+            <h3>&#128196; Supporting Documents Required${claimDocs.length > 0 ? ' — Grant Submission' : ''}</h3>
+            ${docList(result.supportingDocs.grantSubmission)}
+            ${claimDocs.length > 0 ? `<h3 style="margin-top:12px;">&#128196; Supporting Documents Required — Claim Submission</h3>
+            ${docList(claimDocs)}` : ''}
            </div>`
         : '';
 
     const warningsSection = result.warnings && result.warnings.length > 0
         ? `<div class="warnings-section">
             <h3>&#128204; Notes &amp; Reminders</h3>
-            <ul>${result.warnings.map(w => `<li>${w}</li>`).join('')}</ul>
+            <ul>${result.warnings.map(w => `<li style="white-space:pre-line;">${esc(w)}</li>`).join('')}</ul>
            </div>`
         : '';
 
@@ -76,6 +97,9 @@ const buildHTML = (result, meta = {}) => {
     .meta-item { }
     .meta-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
     .meta-value { font-size: 14px; font-weight: 700; color: #333; margin-top: 2px; }
+    .names { margin-bottom: 12px; padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 6px; }
+    .names .meta-value { font-size: 15px; }
+    .names .meta-item + .meta-item { margin-top: 8px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
     th { background: #2e7d32; color: white; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
     th:last-child { text-align: right; }
@@ -102,19 +126,30 @@ const buildHTML = (result, meta = {}) => {
         <p>Generated on ${now} | Source: https://www.hrdcorp.gov.my</p>
     </div>
 
+    ${programmeName || plan ? `<div class="names">
+        ${programmeName ? `<div class="meta-item">
+            <div class="meta-label">Training Programme</div>
+            <div class="meta-value">${esc(programmeName)}</div>
+        </div>` : ''}
+        ${plan ? `<div class="meta-item">
+            <div class="meta-label">Plan</div>
+            <div class="meta-value">${esc(plan)}</div>
+        </div>` : ''}
+    </div>` : ''}
+
     <div class="meta">
         <div class="meta-item">
             <div class="meta-label">Scheme</div>
-            <div class="meta-value">${scheme.toUpperCase()}</div>
+            <div class="meta-value">${esc(String(scheme || '').toUpperCase())}</div>
         </div>
         <div class="meta-item">
             <div class="meta-label">Training Type</div>
-            <div class="meta-value">${trainingType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
+            <div class="meta-value">${esc(trainingTypeLabel(trainingType))}</div>
         </div>
-        <div class="meta-item">
+        ${totalPax != null ? `<div class="meta-item">
             <div class="meta-label">Total Participants</div>
-            <div class="meta-value">${totalPax}</div>
-        </div>
+            <div class="meta-value">${esc(totalPax)}</div>
+        </div>` : ''}
     </div>
 
     <table>

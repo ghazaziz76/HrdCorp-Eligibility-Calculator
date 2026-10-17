@@ -56,13 +56,13 @@ export default function CalculatorTab() {
           </button>
         ))}
       </div>
-      {family === 'training' && <HRDCorpCostCalculator initialPlan={initialPlan} />}
-      {family === 'alat' && <AlatForm initialPlan={initialPlan} />}
-      {family === 'it' && <ItForm initialPlan={initialPlan} />}
-      {family === 'its' && <ItsForm initialPlan={initialPlan} />}
-      {family === 'fwt' && <FwtForm initialPlan={initialPlan} />}
-      {family === 'ojt' && <OjtForm initialPlan={initialPlan} />}
-      {family === 'sgm' && <SgmForm initialPlan={initialPlan} />}
+      {family === 'training' && <HRDCorpCostCalculator key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'alat' && <AlatForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'it' && <ItForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'its' && <ItsForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'fwt' && <FwtForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'ojt' && <OjtForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
+      {family === 'sgm' && <SgmForm key={initialPlan?.id || 'new'} initialPlan={initialPlan} />}
     </div>
   );
 }

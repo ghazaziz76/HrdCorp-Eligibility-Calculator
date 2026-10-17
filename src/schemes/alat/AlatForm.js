@@ -99,7 +99,7 @@ export default function AlatForm({ initialPlan } = {}) {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="alat" schemeLabel="ALAT — Facilities & Renovation" result={result} inputs={{ levyBalance, equipment, renovation }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
+      <PurchaseResult schemeId="alat" schemeLabel="ALAT — Training Facilities & Renovation" result={result} inputs={{ levyBalance, equipment, renovation }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

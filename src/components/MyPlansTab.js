@@ -12,6 +12,27 @@ const SCHEME_COLOR = {
   fwt: '#ad1457', ojt: '#e65100', sgm: '#4527a0',
 };
 
+// PDF meta for a saved plan. HCC/SBL/SLB plans carry participant groups, so total pax
+// = host + branches + subsidiaries and the real training type is known; the other
+// schemes have no participant count, so the participants line is left out.
+const PAX_SCHEMES = new Set(['hcc', 'sbl', 'slb']);
+const paxOf = (v) => parseInt(v, 10) || 0;
+export const planExportMeta = (plan) => {
+  const inputs = plan.inputs || {};
+  const isTraining = PAX_SCHEMES.has(plan.schemeId);
+  return {
+    scheme: plan.schemeId,
+    trainingType: isTraining ? (inputs.trainingType || '') : plan.schemeLabel,
+    totalPax: isTraining
+      ? paxOf(inputs.host?.pax)
+        + (inputs.branches || []).reduce((s, b) => s + paxOf(b?.pax), 0)
+        + (inputs.subsidiaries || []).reduce((s, c) => s + paxOf(c?.pax), 0)
+      : undefined,
+    trainingProgrammeName: inputs.trainingProgrammeName || '',
+    planName: plan.name || '',
+  };
+};
+
 export default function MyPlansTab({ onSwitchToCalculator }) {
   const [plans, setPlans] = useState(loadPlans());
   const [expanded, setExpanded] = useState(null);
@@ -54,7 +75,7 @@ export default function MyPlansTab({ onSwitchToCalculator }) {
 
   const handleExport = (plan) => {
     exportResultPDF(plan.resultSnapshot || { items: [], totalClaimable: 0, warnings: [], supportingDocs: { grantSubmission: [] } },
-      { scheme: plan.schemeId, trainingType: plan.schemeLabel, totalPax: 0 });
+      planExportMeta(plan));
   };
 
   const TRAINING_SCHEMES = ['hcc', 'sbl', 'slb'];

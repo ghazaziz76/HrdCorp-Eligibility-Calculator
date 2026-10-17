@@ -119,10 +119,11 @@ test('null fields leave boxes untouched', async () => {
     expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
 });
 
-test('privacy note keeps the typed-data sentence and mentions brochure uploads', async () => {
+test('privacy note says plans and history stay in this browser and mentions brochure uploads', async () => {
     await act(async () => { root.render(<HRDCorpCostCalculator />); });
-    expect(container.textContent).toContain('No data entered into this calculator is stored or transmitted.');
-    expect(container.textContent).toContain("Except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.");
+    expect(container.textContent).not.toContain('stored or transmitted');
+    expect(container.textContent).toContain('Your inputs, saved plans and history are kept in this browser only and are not sent to Millenium Resource Ltd or any third party');
+    expect(container.textContent).toContain("except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.");
 });
 
 test.each(['elearning', 'mobile_elearning', 'development'])('days and duration not applied for %s', async (type) => {
