@@ -2,6 +2,7 @@ const express = require('express');
 const cors    = require('cors');
 const path    = require('path');
 const adminRoutes      = require('./routes/admin');
+const tgeAdminRoutes   = require('./routes/tgeAdmin');
 const activationRoutes = require('./routes/activation');
 const newsletterRoutes = require('./routes/newsletter');
 const { createAiRouter } = require('./routes/ai');
@@ -21,6 +22,7 @@ function createApp(options = {}) {
 
     // ── API routes ────────────────────────────────────────
     app.use('/api', adminRoutes);
+    app.use('/api', tgeAdminRoutes);
     app.use('/api', activationRoutes);
 
     // ── Serve built React app (production) ───────────────
