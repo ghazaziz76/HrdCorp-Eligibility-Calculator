@@ -3,6 +3,7 @@ const router  = express.Router();
 const crypto  = require('crypto');
 const store   = require('../lib/store');
 const usage   = require('../lib/usage');
+const playVerify = require('../lib/playVerify');
 
 const readCodes  = () => store.readJSON('activation-codes.json', []);
 const writeCodes = (codes) => store.writeJSON('activation-codes.json', codes);
@@ -17,10 +18,19 @@ const lockedResponse = (res, entry) => res.status(403).json({
     reason: lockedReason(entry),
 });
 
+// Fire-and-forget RevenueCat verification; only when a key is configured.
+const triggerVerification = (code) => {
+    if (!process.env.REVENUECAT_SECRET_KEY) return;
+    playVerify.applyVerification(code).catch((err) => {
+        console.error('[playVerify] verification failed:', err && err.message);
+    });
+};
+
 // ── POST /api/employer/activation-codes ──────────────────
 // Mobile app registers a new activation code after purchase
 router.post('/employer/activation-codes', (req, res) => {
-    const { code, feature_key, google_play_order_id } = req.body;
+    const { code, feature_key, google_play_order_id, rc_app_user_id } = req.body;
+    const rcId = typeof rc_app_user_id === 'string' ? rc_app_user_id.trim() : '';
 
     if (!code || !feature_key) {
         return res.status(400).json({ success: false, message: 'Missing code or feature_key' });
@@ -31,6 +41,12 @@ router.post('/employer/activation-codes', (req, res) => {
     // Check if code already registered
     const existing = codes.find(c => c.code === code);
     if (existing) {
+        // Store the RevenueCat id only if empty; never overwrite.
+        if (rcId && !(existing.play && existing.play.rc_app_user_id)) {
+            existing.play = { ...(existing.play || {}), rc_app_user_id: rcId };
+            writeCodes(codes);
+            triggerVerification(existing.code);
+        }
         return res.json({ success: true, data: { code: existing.code, feature_key: existing.feature_key } });
     }
 
@@ -44,8 +60,10 @@ router.post('/employer/activation-codes', (req, res) => {
         session_token: null,
     };
 
+    if (rcId) entry.play = { rc_app_user_id: rcId };
     codes.push(entry);
     writeCodes(codes);
+    if (rcId) triggerVerification(code);
 
     res.json({ success: true, data: { code, feature_key } });
 });
