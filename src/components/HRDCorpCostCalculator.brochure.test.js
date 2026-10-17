@@ -118,3 +118,49 @@ test('null fields leave boxes untouched', async () => {
     expect(control('Number of Training Days').value).toBe('2');
     expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
 });
+
+test('privacy note keeps the typed-data sentence and mentions brochure uploads', async () => {
+    await act(async () => { root.render(<HRDCorpCostCalculator />); });
+    expect(container.textContent).toContain('No data entered into this calculator is stored or transmitted.');
+    expect(container.textContent).toContain("Except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.");
+});
+
+test.each(['elearning', 'mobile_elearning', 'development'])('days and duration not applied for %s', async (type) => {
+    mockServer({ trainingProgrammeName: null, trainingType: type, venue: null, days: 5, duration: 'half_day', actualCourseFee: 900 });
+    await renderWithScheme();
+    await upload();
+    expect(control('Type of Training').value).toBe(type);
+    expect(control('Number of Training Days')).toBeNull();
+    expect(control('Daily Duration')).toBeNull();
+    // Only Type (and Fee, where its box is shown) carry a visible tag.
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(type === 'development' ? 2 : 1);
+
+    // Back to in-house by hand: days and duration are still the old values.
+    await act(async () => { setValue(control('Type of Training'), 'inhouse'); });
+    expect(control('Number of Training Days').value).toBe('1');
+    expect(control('Daily Duration').value).toBe('full_day');
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
+});
+
+test('choosing SLB that resets the type clears the Type tag', async () => {
+    mockServer({ trainingProgrammeName: null, trainingType: 'public', venue: null, days: null, duration: null, actualCourseFee: null });
+    await renderWithScheme();
+    await upload();
+    expect(control('Type of Training').value).toBe('public');
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
+
+    const slb = [...container.querySelectorAll('div')].find(d => d.textContent === 'Skim Latihan Bersama (SLB)');
+    await act(async () => { slb.click(); });
+    expect(control('Type of Training').value).toBe('inhouse');
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(0);
+});
+
+test('choosing SLB keeps the Type tag when the type is not reset', async () => {
+    mockServer({ trainingProgrammeName: null, trainingType: 'rot_inhouse', venue: null, days: null, duration: null, actualCourseFee: null });
+    await renderWithScheme();
+    await upload();
+    const slb = [...container.querySelectorAll('div')].find(d => d.textContent === 'Skim Latihan Bersama (SLB)');
+    await act(async () => { slb.click(); });
+    expect(control('Type of Training').value).toBe('rot_inhouse');
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
+});

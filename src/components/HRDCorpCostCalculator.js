@@ -255,6 +255,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     // Type first; venue only for types that have a Venue box; nulls are skipped.
     const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'coaching_mentoring', 'development'];
     const SLB_TYPES   = ['inhouse', 'rot_inhouse'];
+    // These types hide the Days and Duration boxes.
+    const NO_DAYS_TYPES = ['elearning', 'mobile_elearning', 'development'];
     const applyBrochure = (fields) => {
         const f = fields || {};
         const filled = [];
@@ -266,7 +268,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             filled.push('trainingType');
         }
         if (f.venue != null && VENUE_TYPES.includes(type)) { SETTERS.venue(f.venue); filled.push('venue'); }
-        ['days', 'duration', 'actualCourseFee'].forEach(k => {
+        const keys = NO_DAYS_TYPES.includes(type) ? ['actualCourseFee'] : ['days', 'duration', 'actualCourseFee'];
+        keys.forEach(k => {
             if (f[k] != null) { SETTERS[k](f[k]); filled.push(k); }
         });
         if (f.trainingProgrammeName != null) {
@@ -310,6 +313,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             // SLB: in-house and ROT in-house only — reset if current type not eligible
                             if (s.value === 'slb' && !['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(trainingType)) {
                                 setTrainingType('inhouse');
+                                unmark('trainingType');
                                 setBranches([]);
                             }
                             // SLB: no subsidiary input — clear any existing
@@ -344,7 +348,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         It is the <strong>employer's sole responsibility</strong> to ensure all grant submissions comply with HRD Corp requirements. Millenium Resource Ltd is not liable for any grant rejection, underclaim, overclaim, or audit findings arising from the use of this calculator.
                     </li>
                     <li style={{ fontSize: '12px', color: '#555', marginBottom: '6px', lineHeight: '1.6' }}>
-                        <strong>No data entered into this calculator is stored or transmitted.</strong> All calculations are performed locally in your browser. No information is shared with Millenium Resource Ltd or any third party.
+                        <strong>No data entered into this calculator is stored or transmitted.</strong> All calculations are performed locally in your browser. No information is shared with Millenium Resource Ltd or any third party. Except brochures you choose to upload: these are sent to our server and to Anthropic's Claude to be read, and are not kept.
                     </li>
                 </ol>
             </div>

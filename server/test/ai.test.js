@@ -173,3 +173,23 @@ test('stub extractor → 503 not_configured and nothing counted toward used', as
     assert.strictEqual((await access(d.code)).ai.used, 0);
     assert.strictEqual(readData('tge-usage.json')[d.code], undefined);
 });
+
+test('image over 4.5 MB -> 413, nothing counted, API not called', async () => {
+    const d = await sync({ email: 'img@y.com' });
+    const { extractBrochure } = require('../ai/extractor');
+    let apiCalls = 0;
+    const fakeApi = async () => { apiCalls++; return { ok: true, json: async () => ({}) }; };
+    holder.fn = (a) => extractBrochure(a, { apiKey: 'test-key', fetch: fakeApi });
+    const failedBefore = (() => { try { return (readData('tge-usage.json')[d.code] || {}).failed; } catch { return undefined; } })();
+    const img = Buffer.alloc(4.5 * 1024 * 1024 + 1);
+    img[0] = 0xff; img[1] = 0xd8; img[2] = 0xff;
+    const fd = new FormData();
+    fd.append('file', new Blob([img], { type: 'image/jpeg' }), 'big.jpg');
+    const r = await fetch(srv.base + '/api/employer/ai-brochure', { method: 'POST', headers: { 'x-tge-code': d.code }, body: fd });
+    assert.strictEqual(r.status, 413);
+    assert.deepStrictEqual(await r.json(), { success: false, message: 'Image too large (max 4.5 MB)' });
+    assert.strictEqual(apiCalls, 0);
+    assert.strictEqual((await access(d.code)).ai.used, 0);
+    const failedAfter = (() => { try { return (readData('tge-usage.json')[d.code] || {}).failed; } catch { return undefined; } })();
+    assert.deepStrictEqual(failedAfter, failedBefore);
+});

@@ -5,6 +5,8 @@
 //
 // - deps = { fetch, apiKey, timeoutMs } (defaults: global fetch, env ANTHROPIC_API_KEY, 60 s).
 // - No key: throws code 'not_configured' (the route answers 503 and counts nothing).
+// - Image over 4.5 MB: throws code 'image_too_large' before any API call (route: 413, counts nothing).
+// - The real file type is read from the first bytes and wins over the browser's mimetype.
 // - Any other failure throws a plain read failure; `err.usage` is set when tokens were spent.
 // - The file is never written to disk or logged; it only goes into the request body.
 // - fields: exactly trainingProgrammeName, trainingType, venue, days, duration, actualCourseFee
@@ -13,8 +15,10 @@
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-haiku-5-5';
 const API_VERSION = '2023-06-01';
-const MAX_TOKENS = 400;
+const MAX_TOKENS = 2000;
 const DOCX_TEXT_CAP = 50000;
+// The API rejects images over 5 MB; stay well under it.
+const IMAGE_MAX_BYTES = 4.5 * 1024 * 1024;
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -45,6 +49,10 @@ Use null for anything the brochure does not state. Never guess.
 
 function notConfigured() {
     return Object.assign(new Error('AI extraction not configured'), { code: 'not_configured' });
+}
+
+function imageTooLarge() {
+    return Object.assign(new Error('Image too large (max 4.5 MB)'), { code: 'image_too_large' });
 }
 
 function readFailed(usage) {
@@ -80,7 +88,7 @@ function toDays(v) {
 
 function toName(v) {
     if (typeof v !== 'string') return null;
-    const s = v.trim();
+    const s = v.replace(/\s+/g, ' ').trim();
     return s && s.length <= 200 ? s : null;
 }
 
@@ -95,7 +103,7 @@ function validateFields(raw) {
     let feeMayIncludeSst = false;
     if (fee !== null && r.sst_included === true) {
         const rate = toNumber(typeof r.sst_rate === 'string' ? r.sst_rate.replace('%', '') : r.sst_rate);
-        if (rate !== null && rate >= 0) fee = round2(fee / (1 + rate / 100));
+        if (rate !== null && rate > 0 && rate <= 30) fee = round2(fee / (1 + rate / 100));
         else feeMayIncludeSst = true;
     }
 
@@ -129,14 +137,31 @@ function parseModelJson(text) {
     throw new Error('no JSON object in model reply');
 }
 
+// The real type from the first bytes, or null when the signature is unknown.
+function sniffType(buffer) {
+    const b = buffer || Buffer.alloc(0);
+    const at = (i, bytes) => bytes.every((x, k) => b[i + k] === x);
+    if (b.length >= 4 && b.toString('latin1', 0, 4) === '%PDF') return 'application/pdf';
+    if (at(0, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+    if (at(0, [0x89, 0x50, 0x4e, 0x47])) return 'image/png';
+    if (b.length >= 12 && b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+    if (at(0, [0x50, 0x4b])) return DOCX_MIME;
+    return null;
+}
+
 async function fileBlock({ buffer, mimeType }) {
-    if (mimeType === 'application/pdf') {
+    const sniffed = sniffType(buffer);
+    // Unknown signature for a claimed image or PDF: don't send it.
+    if (!sniffed && (mimeType === 'application/pdf' || IMAGE_MIME.has(mimeType))) throw readFailed();
+    const type = sniffed || mimeType;
+    if (type === 'application/pdf') {
         return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } };
     }
-    if (IMAGE_MIME.has(mimeType)) {
-        return { type: 'image', source: { type: 'base64', media_type: mimeType, data: buffer.toString('base64') } };
+    if (IMAGE_MIME.has(type)) {
+        if (buffer.length > IMAGE_MAX_BYTES) throw imageTooLarge();
+        return { type: 'image', source: { type: 'base64', media_type: type, data: buffer.toString('base64') } };
     }
-    if (mimeType === DOCX_MIME) {
+    if (type === DOCX_MIME) {
         const mammoth = require('mammoth');
         const { value } = await mammoth.extractRawText({ buffer });
         const text = String(value || '').trim().slice(0, DOCX_TEXT_CAP);
@@ -153,11 +178,17 @@ async function extractBrochure({ buffer, mimeType }, deps = {}) {
     if (!apiKey) throw notConfigured();
 
     let block;
-    try { block = await fileBlock({ buffer, mimeType }); } catch { throw readFailed(); }
+    try {
+        block = await fileBlock({ buffer, mimeType });
+    } catch (err) {
+        if (err && err.code === 'image_too_large') throw err;
+        throw readFailed();
+    }
 
     const body = JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,
+        thinking: { type: 'disabled' },
         system: SYSTEM_PROMPT,
         messages: [{
             role: 'user',
@@ -184,6 +215,8 @@ async function extractBrochure({ buffer, mimeType }, deps = {}) {
     }
 
     const usage = data && data.usage;
+    // A cut-off reply is never trusted, even if it happens to parse.
+    if (data && data.stop_reason === 'max_tokens') throw readFailed(usage);
     const textBlock = Array.isArray(data && data.content) ? data.content.find((c) => c && c.type === 'text') : null;
     let fields;
     try {

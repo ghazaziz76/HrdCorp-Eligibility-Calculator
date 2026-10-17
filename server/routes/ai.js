@@ -67,6 +67,9 @@ function createAiRouter({ extract }) {
                 if (err && err.code === 'not_configured') {
                     return res.status(503).json({ success: false, reason: 'not_configured', ai: usage.accessFor(entry, at).ai });
                 }
+                if (err && err.code === 'image_too_large') {
+                    return res.status(413).json({ success: false, message: 'Image too large (max 4.5 MB)' });
+                }
                 usage.recordFailure(entry, usage.estimateCostUsd(err && err.usage, usage.getSettings()), at);
                 return res.status(422).json({ success: false, reason: 'read_failed', ai: usage.accessFor(entry, at).ai });
             }

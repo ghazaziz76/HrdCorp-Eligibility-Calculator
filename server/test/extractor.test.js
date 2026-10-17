@@ -94,7 +94,8 @@ test('pdf sent as document block', async () => {
     assert.strictEqual(url, 'https://api.anthropic.com/v1/messages');
     assert.strictEqual(init.method, 'POST');
     assert.strictEqual(body.model, 'claude-haiku-5-5');
-    assert.strictEqual(body.max_tokens, 400);
+    assert.strictEqual(body.max_tokens, 2000);
+    assert.deepStrictEqual(body.thinking, { type: 'disabled' });
     assert.strictEqual(init.headers['x-api-key'], 'test-key');
     assert.strictEqual(init.headers['anthropic-version'], '2023-06-01');
     const doc = blocks(f).find((b) => b.type === 'document');
@@ -219,3 +220,87 @@ test('timeout aborts the request -> read failure', async () => {
     );
     assert.strictEqual(signal.aborted, true);
 });
+
+test('request turns thinking off and allows 2000 tokens', async () => {
+    const f = fakeFetch(reply(JSON.stringify(GOOD)));
+    await extractBrochure({ buffer: Buffer.from('%PDF-1.4'), mimeType: 'application/pdf', originalName: 'a.pdf' }, deps(f));
+    assert.deepStrictEqual(f.calls[0].body.thinking, { type: 'disabled' });
+    assert.strictEqual(f.calls[0].body.max_tokens, 2000);
+});
+
+test("stop_reason 'max_tokens' -> read failure with usage", async () => {
+    const usage = { input_tokens: 900, output_tokens: 2000 };
+    const f = fakeFetch({ ...reply(JSON.stringify(GOOD), usage), stop_reason: 'max_tokens' });
+    await assert.rejects(
+        extractBrochure({ buffer: Buffer.from('%PDF'), mimeType: 'application/pdf', originalName: 'a.pdf' }, deps(f)),
+        (e) => e.code !== 'not_configured' && e.usage === usage,
+    );
+});
+
+const IMAGE_MAX = 4.5 * 1024 * 1024;
+const jpegOf = (size) => { const b = Buffer.alloc(size); b[0] = 0xff; b[1] = 0xd8; b[2] = 0xff; return b; };
+
+test('image over 4.5 MB -> image_too_large before calling the API', async () => {
+    const f = fakeFetch(reply(JSON.stringify(GOOD)));
+    await assert.rejects(
+        extractBrochure({ buffer: jpegOf(IMAGE_MAX + 1), mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(f)),
+        (e) => e.code === 'image_too_large' && e.usage === undefined,
+    );
+    assert.strictEqual(f.calls.length, 0);
+});
+
+test('image of exactly 4.5 MB is sent', async () => {
+    const f = fakeFetch(reply(JSON.stringify(GOOD)));
+    await extractBrochure({ buffer: jpegOf(IMAGE_MAX), mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(f));
+    assert.strictEqual(f.calls.length, 1);
+});
+
+test('real file type wins over the browser mimetype', async () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const f = fakeFetch(reply(JSON.stringify(GOOD)));
+    await extractBrochure({ buffer: png, mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(f));
+    const img = blocks(f).find((b) => b.type === 'image');
+    assert.strictEqual(img.source.media_type, 'image/png');
+
+    const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')]);
+    const g = fakeFetch(reply(JSON.stringify(GOOD)));
+    await extractBrochure({ buffer: webp, mimeType: 'image/png', originalName: 'a.png' }, deps(g));
+    assert.strictEqual(blocks(g).find((b) => b.type === 'image').source.media_type, 'image/webp');
+
+    const h = fakeFetch(reply(JSON.stringify(GOOD)));
+    await extractBrochure({ buffer: Buffer.from('%PDF-1.7'), mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(h));
+    assert.ok(blocks(h).find((b) => b.type === 'document'), 'a PDF named .jpg goes as a document');
+});
+
+test('unknown signature for a claimed image or pdf -> read failure, API not called', async () => {
+    for (const mimeType of ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']) {
+        const f = fakeFetch(reply(JSON.stringify(GOOD)));
+        await assert.rejects(
+            extractBrochure({ buffer: Buffer.from('hello world'), mimeType, originalName: 'x' }, deps(f)),
+            (e) => e.code !== 'not_configured' && e.code !== 'image_too_large',
+        );
+        assert.strictEqual(f.calls.length, 0, mimeType);
+    }
+});
+
+test('sst_rate accepted only in (0, 30]', () => {
+    const at = (rate) => validateFields({ ...GOOD, actualCourseFee: 108, sst_included: true, sst_rate: rate });
+    // 0.08 is inside (0, 30], so it is used as a 0.08 % rate.
+    assert.strictEqual(at(0.08).actualCourseFee, 107.91);
+    assert.strictEqual(at(0.08).feeMayIncludeSst, undefined);
+    for (const bad of [800, 0]) {
+        const r = at(bad);
+        assert.strictEqual(r.actualCourseFee, 108, String(bad));
+        assert.strictEqual(r.feeMayIncludeSst, true, String(bad));
+    }
+    assert.strictEqual(at('8%').actualCourseFee, 100);
+    assert.strictEqual(at('8%').feeMayIncludeSst, undefined);
+    assert.strictEqual(at(30).actualCourseFee, round2(108 / 1.3));
+});
+
+test('name whitespace collapsed', () => {
+    assert.strictEqual(validateFields({ ...GOOD, trainingProgrammeName: '  Lean\n Management   Basics ' }).trainingProgrammeName,
+        'Lean Management Basics');
+});
+
+const round2 = (n) => Math.round(n * 100) / 100;

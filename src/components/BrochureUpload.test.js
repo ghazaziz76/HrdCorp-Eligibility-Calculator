@@ -155,3 +155,20 @@ test("shows 'Reading your brochure…' while waiting", async () => {
     await act(async () => { resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, data: { fields: SIX, ai } }) }); });
     expect(container.textContent).not.toContain('Reading your brochure…');
 });
+
+test.each(['photo.jpg', 'photo.JPEG', 'scan.png', 'scan.webp'])('rejects an image over 4.5 MB without calling fetch (%s)', async (name) => {
+    mockServer(200, {});
+    const onFields = await render();
+    await pick(name, 4.5 * 1024 * 1024 + 1);
+    expect(brochureCalls()).toHaveLength(0);
+    expect(onFields).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Image too large (max 4.5 MB). Please send a smaller photo or a PDF.');
+});
+
+test('a PDF over 4.5 MB (under 10 MB) is still sent', async () => {
+    mockServer(200, { success: true, data: { fields: SIX, ai } });
+    const onFields = await render();
+    await pick('brochure.pdf', 4.5 * 1024 * 1024 + 1);
+    expect(brochureCalls()).toHaveLength(1);
+    expect(onFields).toHaveBeenCalledWith(SIX);
+});

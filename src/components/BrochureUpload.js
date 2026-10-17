@@ -5,11 +5,15 @@ import OutOfUploadsMessage from './OutOfUploadsMessage';
 export const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,.webp';
 const ALLOWED_EXT = ACCEPT.split(',');
 const MAX_BYTES = 10 * 1024 * 1024;
+// The AI rejects images over 5 MB, so photos are capped lower than other files.
+const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
+const MAX_IMAGE_BYTES = 4.5 * 1024 * 1024;
 const FIELD_KEYS = ['trainingProgrammeName', 'trainingType', 'venue', 'days', 'duration', 'actualCourseFee'];
 
 const MSG = {
     badType: 'Please save it as PDF or .docx',
     tooBig: 'File too large (max 10 MB)',
+    imageTooBig: 'Image too large (max 4.5 MB). Please send a smaller photo or a PDF.',
     noCode: 'Please enter your activation code again',
     readFailed: "We couldn't read the details from this file. It didn't use up an upload.",
     unsupported: 'Please upload a PDF, Word (.docx) or image file',
@@ -58,6 +62,7 @@ const BrochureUpload = ({ onFields, platform = 'web' }) => {
         const name = (file.name || '').toLowerCase();
         if (!ALLOWED_EXT.some(ext => name.endsWith(ext))) return fail(MSG.badType);
         if (file.size > MAX_BYTES) return fail(MSG.tooBig);
+        if (IMAGE_EXT.some(ext => name.endsWith(ext)) && file.size > MAX_IMAGE_BYTES) return fail(MSG.imageTooBig);
         const code = readCode();
         if (!code) return fail(MSG.noCode);
 
