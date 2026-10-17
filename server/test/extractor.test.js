@@ -78,11 +78,11 @@ function buildDocx(text) {
 }
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-test('no api key -> not_configured', async () => {
+test('no api key -> provider_error', async () => {
     const f = fakeFetch(reply(JSON.stringify(GOOD)));
     await assert.rejects(
         extractBrochure({ buffer: Buffer.from('%PDF'), mimeType: 'application/pdf', originalName: 'a.pdf' }, { fetch: f, apiKey: '' }),
-        (e) => e.code === 'not_configured',
+        (e) => e.code === 'provider_error',
     );
     assert.strictEqual(f.calls.length, 0);
 });
@@ -196,20 +196,20 @@ test('unparseable reply -> read failure with usage', async () => {
     );
 });
 
-test('api error throws read failure', async () => {
+test('api error / network error -> provider_error (not counted as a read failure)', async () => {
     const f = fakeFetch({ type: 'error', error: { type: 'overloaded_error' } }, 529);
     await assert.rejects(
         extractBrochure({ buffer: Buffer.from('%PDF'), mimeType: 'application/pdf', originalName: 'a.pdf' }, deps(f)),
-        (e) => e.code !== 'not_configured',
+        (e) => e.code === 'provider_error',
     );
     const rejecting = async () => { throw Object.assign(new Error('aborted'), { name: 'AbortError' }); };
     await assert.rejects(
         extractBrochure({ buffer: Buffer.from('%PDF'), mimeType: 'application/pdf', originalName: 'a.pdf' }, deps(rejecting)),
-        (e) => e.code !== 'not_configured',
+        (e) => e.code === 'provider_error',
     );
 });
 
-test('timeout aborts the request -> read failure', async () => {
+test('timeout aborts the request -> provider_error', async () => {
     let signal;
     const hanging = (url, init) => new Promise((resolve, reject) => {
         signal = init.signal;
@@ -217,7 +217,7 @@ test('timeout aborts the request -> read failure', async () => {
     });
     await assert.rejects(
         extractBrochure({ buffer: Buffer.from('%PDF'), mimeType: 'application/pdf', originalName: 'a.pdf' }, { fetch: hanging, apiKey: 'k', timeoutMs: 20 }),
-        (e) => e.code !== 'not_configured',
+        (e) => e.code === 'provider_error',
     );
     assert.strictEqual(signal.aborted, true);
 });
@@ -238,10 +238,10 @@ test("stop_reason 'max_tokens' -> read failure with usage", async () => {
     );
 });
 
-const IMAGE_MAX = 4.5 * 1024 * 1024;
+const IMAGE_MAX = require('../ai/extractor').IMAGE_MAX_BYTES;
 const jpegOf = (size) => { const b = Buffer.alloc(size); b[0] = 0xff; b[1] = 0xd8; b[2] = 0xff; return b; };
 
-test('image over 4.5 MB -> image_too_large before calling the API', async () => {
+test('image over the limit -> image_too_large before calling the API', async () => {
     const f = fakeFetch(reply(JSON.stringify(GOOD)));
     await assert.rejects(
         extractBrochure({ buffer: jpegOf(IMAGE_MAX + 1), mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(f)),
@@ -250,7 +250,7 @@ test('image over 4.5 MB -> image_too_large before calling the API', async () => 
     assert.strictEqual(f.calls.length, 0);
 });
 
-test('image of exactly 4.5 MB is sent', async () => {
+test('image of exactly the limit is sent', async () => {
     const f = fakeFetch(reply(JSON.stringify(GOOD)));
     await extractBrochure({ buffer: jpegOf(IMAGE_MAX), mimeType: 'image/jpeg', originalName: 'a.jpg' }, deps(f));
     assert.strictEqual(f.calls.length, 1);
@@ -286,8 +286,8 @@ test('unknown signature for a claimed image or pdf -> read failure, API not call
 
 test('sst_rate accepted only in (0, 30]', () => {
     const at = (rate) => validateFields({ ...GOOD, actualCourseFee: 108, sst_included: true, sst_rate: rate });
-    // 0.08 is inside (0, 30], so it is used as a 0.08 % rate.
-    assert.strictEqual(at(0.08).actualCourseFee, 107.91);
+    // 0.08 is read as a fraction: 8 %.
+    assert.strictEqual(at(0.08).actualCourseFee, 100);
     assert.strictEqual(at(0.08).feeMayIncludeSst, undefined);
     for (const bad of [800, 0]) {
         const r = at(bad);

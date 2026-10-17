@@ -33,12 +33,13 @@ export default function FwtForm({ initialPlan } = {}) {
   const [distance, setDistance] = useState('under_100');
   const [allowanceType, setAllowanceType] = useState('daily');
   const [courseFee, setCourseFee] = useState('');
+  const [courseFeeActual, setCourseFeeActual] = useState('');
   const [durationType, setDurationType] = useState('less_than_month');
   const [months, setMonths] = useState('');
   const [monthlyAllowancePerTrainee, setMonthlyAllowancePerTrainee] = useState('');
   const [consumableCost, setConsumableCost] = useState('');
   const [result, setResult] = useState(initialPlan?.resultSnapshot ?? null);
-  usePlanSeed(initialPlan, { subType: setSubType, courseCategory: setCourseCategory, trainerType: setTrainerType, numberOfTrainees: setNumberOfTrainees, trainingDays: setTrainingDays, dailyDuration: setDailyDuration, distance: setDistance, allowanceType: setAllowanceType, courseFee: setCourseFee, durationType: setDurationType, months: setMonths, monthlyAllowancePerTrainee: setMonthlyAllowancePerTrainee, consumableCost: setConsumableCost });
+  usePlanSeed(initialPlan, { subType: setSubType, courseCategory: setCourseCategory, trainerType: setTrainerType, numberOfTrainees: setNumberOfTrainees, trainingDays: setTrainingDays, dailyDuration: setDailyDuration, distance: setDistance, allowanceType: setAllowanceType, courseFee: setCourseFee, courseFeeActual: setCourseFeeActual, durationType: setDurationType, months: setMonths, monthlyAllowancePerTrainee: setMonthlyAllowancePerTrainee, consumableCost: setConsumableCost });
 
   const isInhouse = subType === 'inhouse';
   const isInternal = isInhouse && trainerType === 'internal';
@@ -49,7 +50,7 @@ export default function FwtForm({ initialPlan } = {}) {
 
   const calculate = () => setResult(calculateFwt({
     subType, courseCategory, trainerType, numberOfTrainees, trainingDays,
-    dailyDuration, distance, allowanceType, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost,
+    dailyDuration, distance, allowanceType, courseFee, courseFeeActual, durationType, months, monthlyAllowancePerTrainee, consumableCost,
   }));
 
   return (
@@ -154,9 +155,10 @@ export default function FwtForm({ initialPlan } = {}) {
           )}
           {isGeneralPublic && (
             <div style={rStyle}>
-              <label style={lStyle}>Course Fee</label>
-              <input type="text" style={readOnlyStyle} value={`RM ${dailyDuration === 'half_day' ? '1,000' : '1,750'}/pax/${dailyDuration === 'half_day' ? 'half-day' : 'day'} (ACM rate)`} readOnly tabIndex={-1} />
-              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>General public courses use the ACM rate × trainees × days — computed automatically.</p>
+              <label style={lStyle}>Actual Course Fee per Pax (RM, as charged — optional)</label>
+              <input type="number" min="0" style={iStyle} value={courseFeeActual} onChange={e => setCourseFeeActual(e.target.value)}
+                placeholder={`Leave blank = ACM rate RM ${dailyDuration === 'half_day' ? '1,000/pax/half-day' : '1,750/pax/day'}`} />
+              <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0' }}>Local course fees are claimable as charged (ACM Guide, FWT). Enter the provider's fee per pax for the whole course; leave blank to use the ACM rate × trainees × days.</p>
             </div>
           )}
 
@@ -202,7 +204,7 @@ export default function FwtForm({ initialPlan } = {}) {
       </div>
 
       <button onClick={calculate} style={primaryBtn}>Calculate Eligibility</button>
-      <PurchaseResult schemeId="fwt" schemeLabel="FWT — Future Workers Training" result={result} inputs={{ subType, courseCategory, trainerType, numberOfTrainees, trainingDays, dailyDuration, distance, allowanceType, courseFee, durationType, months, monthlyAllowancePerTrainee, consumableCost }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
+      <PurchaseResult schemeId="fwt" schemeLabel="FWT — Future Workers Training" result={result} inputs={{ subType, courseCategory, trainerType, numberOfTrainees, trainingDays, dailyDuration, distance, allowanceType, courseFee, courseFeeActual, durationType, months, monthlyAllowancePerTrainee, consumableCost }} fromPlanId={initialPlan?.id} fromPlanName={initialPlan?.name} />
     </div>
   );
 }

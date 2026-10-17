@@ -36,8 +36,10 @@ export default function CalculatorTab() {
     }
   }, [pendingOpen, consumeOpen]);
 
-  // Switching family manually clears the pre-loaded plan.
+  // Switching to another family clears the pre-loaded plan. Clicking the chip that is
+  // already selected does nothing (a new key would remount the form and lose the work).
   const pickFamily = (id) => {
+    if (id === family) return;
     setFamily(id);
     setInitialPlan(null);
   };

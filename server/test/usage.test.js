@@ -92,17 +92,18 @@ test('raising limit to 40 unpauses', () => {
   assert.equal(s.pct, 50);
 });
 
-test('estimateCostUsd(1e6 in, 0 out) = 3; undefined → 0.05', () => {
+test('estimateCostUsd defaults are Haiku prices: 1e6 in = 0.10, 1e6 out = 0.50; undefined → 0.002', () => {
   const s = U.getSettings();
-  assert.equal(U.estimateCostUsd({ input_tokens: 1e6, output_tokens: 0 }, s), 3);
-  assert.equal(U.estimateCostUsd({ input_tokens: 0, output_tokens: 1e6 }, s), 15);
-  assert.equal(U.estimateCostUsd(undefined, s), 0.05);
+  assert.deepEqual(U.DEFAULT_SETTINGS.cost, { input_per_mtok: 0.10, output_per_mtok: 0.50, fallback_per_call_usd: 0.002 });
+  assert.equal(U.estimateCostUsd({ input_tokens: 1e6, output_tokens: 0 }, s), 0.1);
+  assert.equal(U.estimateCostUsd({ input_tokens: 0, output_tokens: 1e6 }, s), 0.5);
+  assert.equal(U.estimateCostUsd(undefined, s), 0.002);
 });
 
 test('settings merge cost patch; resetCount zeroes used', () => {
   assert.equal(U.getSettings().monthly_spend_limit_usd, 20);
   U.saveSettings({ cost: { input_per_mtok: 1 } });
-  assert.deepEqual(U.getSettings().cost, { input_per_mtok: 1, output_per_mtok: 15, fallback_per_call_usd: 0.05 });
+  assert.deepEqual(U.getSettings().cost, { input_per_mtok: 1, output_per_mtok: 0.5, fallback_per_call_usd: 0.002 });
   const e = entry();
   U.recordSuccess(e, 0, NOW);
   U.recordFailure(e, 0, NOW);
@@ -133,5 +134,5 @@ test('mail failure clears the alert flag and a later call retries', async () => 
 test('non-finite cost falls back to the per-call fallback', () => {
   U.recordFailure(entry(), NaN, NOW);
   U.recordSuccess(entry(), undefined, NOW);
-  assert.equal(U.getSpend(NOW).usd, 0.1);
+  assert.equal(U.getSpend(NOW).usd, 0.004);
 });

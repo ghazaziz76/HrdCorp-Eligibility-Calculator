@@ -79,3 +79,26 @@ test('empty input -> zero with guidance warning', () => {
   expect(r.totalClaimable).toBe(0);
   expect(r.warnings.some(w => /enter the OJT details/i.test(w))).toBe(true);
 });
+
+// ACM Guide (OJT): "The maximum training hours are 300 hours" and "For training involving five (5) trainees
+// or more, an application for financial assistance should be made under the SBL Scheme for internal trainer allowance."
+test('claimable hours are capped at 300 in the amount', () => {
+  const r = calculateOjt({ numberOfTrainees: 2, trainingHours: 400 });
+  expect(r.totalClaimable).toBe(50 * 300 * 2);
+});
+
+test('5 or more trainees: trainer allowance blocked (amount 0) with the SBL message', () => {
+  const r = calculateOjt({ numberOfTrainees: 5, trainingHours: 10, examinationFee: 300 });
+  const trainer = r.items.find(i => /OJT Trainer Allowance/.test(i.label));
+  expect(trainer.amount).toBe(0);
+  expect(trainer.note).toMatch(/SBL/);
+  expect(r.sblRequired).toBe(true);
+  expect(r.totalClaimable).toBe(300);
+  expect(r.warnings[0]).toMatch(/SBL scheme/);
+});
+
+test('4 trainees is still claimable under OJT', () => {
+  const r = calculateOjt({ numberOfTrainees: 4, trainingHours: 10 });
+  expect(r.totalClaimable).toBe(2000);
+  expect(r.sblRequired).toBe(false);
+});

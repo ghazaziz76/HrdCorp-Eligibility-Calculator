@@ -1,6 +1,6 @@
 // SGM — Skim Graduan Madani.
 // Source: ACM Guide Jan 2026, section L.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const doc = (text) => ({ text });
 
 const PROGRAMME_MONTHS = 12; // SGM programme duration is fixed at 12 months.

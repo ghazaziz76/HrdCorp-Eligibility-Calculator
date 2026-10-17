@@ -32,8 +32,10 @@ describe.each(['rot_inhouse', 'rot_public'])('%s', (trainingType) => {
         const r = calculateEligibility(base({ trainingType, venue: 'external_hotel' }));
         const travel = item(r, 'C) Travel Allowance');
         expect(travel).toBeDefined();
-        // 15 trainees at >=100km: RM500/day each, at least the 2 training days
-        expect(travel.amount).toBeGreaterThanOrEqual(500 * 15 * 2);
+        // 15 trainees at >=100km: RM500/day each for the 2 training days.
+        // ROT public: host + branches are one employer → max 9 trainees get financial assistance.
+        const eligible = trainingType === 'rot_public' ? 9 : 15;
+        expect(travel.amount).toBe(500 * eligible * 2);
         expect(item(r, 'D) Meal Allowance')).toBeUndefined();
     });
 

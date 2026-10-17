@@ -4,10 +4,14 @@
 //     : Promise<{ fields: object, usage?: { input_tokens: number, output_tokens: number } }>
 //
 // - deps = { fetch, apiKey, timeoutMs } (defaults: global fetch, env ANTHROPIC_API_KEY, 60 s).
-// - No key: throws code 'not_configured' (the route answers 503 and counts nothing).
-// - Image over 4.5 MB: throws code 'image_too_large' before any API call (route: 413, counts nothing).
+// - Provider/server trouble throws code 'provider_error' (route: 503 ai_unavailable, counts nothing):
+//   no API key, network error / timeout, a non-OK API status other than 400/413/422, or an
+//   unreadable API response.
+// - Image over 3.7 MB: throws code 'image_too_large' before any API call (route: 413, counts nothing).
+//   (The API's 5 MB limit applies to the base64 text, which is 4/3 of the raw size.)
 // - The real file type is read from the first bytes and wins over the browser's mimetype.
-// - Any other failure throws a plain read failure; `err.usage` is set when tokens were spent.
+// - Any other failure (the file can't be read, or the model replied with nothing usable) throws a
+//   plain read failure; `err.usage` is set when tokens were spent.
 // - The file is never written to disk or logged; it only goes into the request body.
 // - fields: exactly trainingProgrammeName, trainingType, venue, days, duration, actualCourseFee
 //   (value or null), plus feeMayIncludeSst: true only when an SST-inclusive fee has no stated rate.
@@ -17,8 +21,12 @@ const MODEL = 'claude-haiku-5-5';
 const API_VERSION = '2023-06-01';
 const MAX_TOKENS = 2000;
 const DOCX_TEXT_CAP = 50000;
-// The API rejects images over 5 MB; stay well under it.
-const IMAGE_MAX_BYTES = 4.5 * 1024 * 1024;
+// The API rejects images whose base64 is over 5 MB; 3.7 MB raw is ~4.93 MB as base64.
+const IMAGE_MAX_BYTES = Math.floor(3.7 * 1024 * 1024);
+const MAX_FEE = 1000000;
+const MAX_DAYS = 365;
+// API statuses that mean "this file can't be processed" (a failed read), not provider trouble.
+const FILE_REJECT_STATUS = new Set([400, 413, 422]);
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -47,15 +55,16 @@ Use null for anything the brochure does not state. Never guess.
 - venue: employer_premises or external_hotel, only when the brochure states the venue and trainingType is inhouse, rot_inhouse, rot_public, coaching_mentoring or development. For online training (rot_inhouse, rot_public), external_hotel only when the brochure names a physical venue where trainees gather; joining online from anywhere = null. Otherwise null.
 - days: the number of training days. A printed "N days" wins over counting dates; otherwise count the listed dates (e.g. "19-23, 26-27 Oct" = 7).
 - duration: full_day when a training day has 7 or more training hours (e.g. 9am-5pm), half_day when under 7. Training hours = session span minus a stated lunch break; if no break is stated, use the span. If no hours are stated, null.
-- actualCourseFee: the standard per-person (per pax) fee in RM as a plain number, e.g. "RM129.00 excl SST" = 129. Use the standard fee, not early-bird, member or group prices, unless that is the only price. Give the printed amount.
+- actualCourseFee: the standard per-person (per pax) fee in RM for the WHOLE course, as a plain number, e.g. "RM129.00 excl SST" = 129. Use the standard fee, not early-bird, member or group-discount prices, unless that is the only per-person price. Give the printed amount. If the brochure only states a price per group or per company (e.g. "RM15,000 per group"), or only a per-day price without a clear total for the whole course, use null. Never divide or multiply to work out a per-person or whole-course fee.
 - sst_included: true only if that printed fee includes SST. sst_rate: the SST percentage stated on the brochure (e.g. 8), or null if not stated.`;
 
-function notConfigured() {
-    return Object.assign(new Error('AI extraction not configured'), { code: 'not_configured' });
+// The AI service could not be used (not the user's file): never counted against the user.
+function providerError(detail) {
+    return Object.assign(new Error(`AI provider unavailable (${detail})`), { code: 'provider_error', detail });
 }
 
 function imageTooLarge() {
-    return Object.assign(new Error('Image too large (max 4.5 MB)'), { code: 'image_too_large' });
+    return Object.assign(new Error('Image too large (max 3.7 MB)'), { code: 'image_too_large' });
 }
 
 function readFailed(usage) {
@@ -86,7 +95,15 @@ function toDays(v) {
         const m = v.trim().match(/^(\d+(?:\.\d+)?)/);
         if (m) n = Number(m[1]);
     }
-    return Number.isInteger(n) && n > 0 ? n : null;
+    return Number.isInteger(n) && n >= 1 && n <= MAX_DAYS ? n : null;
+}
+
+// true / false, or the strings "true" / "false"; anything else is null.
+function toBool(v) {
+    if (typeof v === 'boolean') return v;
+    if (typeof v !== 'string') return null;
+    const s = v.trim().toLowerCase();
+    return s === 'true' ? true : s === 'false' ? false : null;
 }
 
 function toName(v) {
@@ -101,11 +118,13 @@ function validateFields(raw) {
     const trainingType = pickEnum(r.trainingType, TRAINING_TYPES);
     const venue = VENUE_TYPES.has(trainingType) ? pickEnum(r.venue, VENUES) : null;
     let fee = toNumber(r.actualCourseFee);
-    if (fee !== null && fee < 0) fee = null;
+    if (fee !== null && !(fee > 0 && fee <= MAX_FEE)) fee = null;
 
     let feeMayIncludeSst = false;
-    if (fee !== null && r.sst_included === true) {
-        const rate = toNumber(typeof r.sst_rate === 'string' ? r.sst_rate.replace('%', '') : r.sst_rate);
+    if (fee !== null && toBool(r.sst_included) === true) {
+        let rate = toNumber(typeof r.sst_rate === 'string' ? r.sst_rate.replace('%', '') : r.sst_rate);
+        // 0.08 is a fraction: 8 %.
+        if (rate !== null && rate > 0 && rate < 1) rate *= 100;
         if (rate !== null && rate > 0 && rate <= 30) fee = round2(fee / (1 + rate / 100));
         else feeMayIncludeSst = true;
     }
@@ -178,7 +197,7 @@ async function extractBrochure({ buffer, mimeType }, deps = {}) {
     const fetchFn = deps.fetch || globalThis.fetch;
     const apiKey = deps.apiKey !== undefined ? deps.apiKey : process.env.ANTHROPIC_API_KEY;
     const timeoutMs = deps.timeoutMs || 60000;
-    if (!apiKey) throw notConfigured();
+    if (!apiKey) throw providerError('not_configured');
 
     let block;
     try {
@@ -203,16 +222,26 @@ async function extractBrochure({ buffer, mimeType }, deps = {}) {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let data;
     try {
-        const res = await fetchFn(API_URL, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': API_VERSION },
-            body,
-            signal: controller.signal,
-        });
-        if (!res.ok) throw readFailed();
-        data = await res.json();
-    } catch {
-        throw readFailed();
+        let res;
+        try {
+            res = await fetchFn(API_URL, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': API_VERSION },
+                body,
+                signal: controller.signal,
+            });
+        } catch {
+            throw providerError('network');
+        }
+        if (!res.ok) {
+            if (FILE_REJECT_STATUS.has(res.status)) throw readFailed();
+            throw providerError(`http_${res.status}`);
+        }
+        try {
+            data = await res.json();
+        } catch {
+            throw providerError('bad_response');
+        }
     } finally {
         clearTimeout(timer);
     }
@@ -233,4 +262,4 @@ async function extractBrochure({ buffer, mimeType }, deps = {}) {
     return { fields, usage };
 }
 
-module.exports = { extractBrochure, validateFields, parseModelJson };
+module.exports = { extractBrochure, validateFields, parseModelJson, sniffType, SYSTEM_PROMPT, IMAGE_MAX_BYTES };

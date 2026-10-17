@@ -39,3 +39,14 @@ test('always includes 50%-levy note + supporting docs (grant + claim)', () => {
   expect(r.supportingDocs.grantSubmission.length).toBeGreaterThan(0);
   expect(r.supportingDocs.claimSubmission.length).toBeGreaterThan(0);
 });
+
+test('months are capped at 12 in the amount (warning stays)', () => {
+  const r = calculateIts({ numberOfInterns: 1, monthlyAllowance: 1000, months: 15 });
+  expect(r.totalClaimable).toBe(12000);
+  expect(r.warnings.some(w => /between 2 and 12 months/.test(w))).toBe(true);
+});
+
+test('negative numbers are treated as 0', () => {
+  const r = calculateIts({ numberOfInterns: 2, monthlyAllowance: 1000, months: 3, ppePerIntern: -500, insurancePerIntern: -100 });
+  expect(r.totalClaimable).toBe(6000);
+});

@@ -4,7 +4,7 @@ const fs       = require('fs');
 const path     = require('path');
 const multer   = require('multer');
 const store   = require('../lib/store');
-const { auth, adminPassword } = require('../lib/adminAuth');
+const { auth, verifyAdmin } = require('../lib/adminAuth');
 
 const UPLOADS_DIR    = path.join(__dirname, '../uploads');
 
@@ -50,8 +50,8 @@ router.get('/pdf/:type', (req, res) => {
 
 // ── Admin: login check ────────────────────────────────────
 router.post('/admin/login', (req, res) => {
-    const { password } = req.body;
-    if (password !== adminPassword()) return res.status(401).json({ error: 'Invalid password' });
+    const { password } = req.body || {};
+    if (!verifyAdmin(req, res, password)) return;
     res.json({ success: true });
 });
 

@@ -160,8 +160,8 @@ test.each(['elearning', 'mobile_elearning', 'development'])('days and duration n
     expect(control('Type of Training').value).toBe(type);
     expect(control('Number of Training Days')).toBeNull();
     expect(control('Daily Duration')).toBeNull();
-    // Only Type (and Fee, where its box is shown) carry a visible tag.
-    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(type === 'development' ? 2 : 1);
+    // Only Type and Fee (its box is shown for all three) carry a visible tag.
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(2);
 
     // Back to in-house by hand: days and duration are still the old values.
     await act(async () => { setValue(control('Type of Training'), 'inhouse'); });

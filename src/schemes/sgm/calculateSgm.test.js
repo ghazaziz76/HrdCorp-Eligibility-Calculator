@@ -28,3 +28,9 @@ test('includes 12-month/eligibility notes + grant docs + no-claim note', () => {
   expect(r.supportingDocs.grantSubmission.length).toBeGreaterThan(0);
   expect(r.supportingDocs.claimSubmission.some(d => /no claim submission/i.test(d.text))).toBe(true);
 });
+
+test('negative salary is treated as 0', () => {
+  const r = calculateSgm({ numberOfGraduates: 2, monthlySalary: -2500 });
+  expect(r.totalRequested).toBe(0);
+  expect(r.totalClaimable).toBe(0);
+});

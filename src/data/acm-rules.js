@@ -183,7 +183,7 @@ export const COST_MATRIX = [
     meal_trainees: false,          // no meal at hotel/external venue (hotel rate covers it)
     meal_includes_trainer: false,
     travel_trainees: true,         // all trainees
-    travel_trainer: true,          // if internal trainer travels from a branch
+    travel_trainer: true,          // internal trainer at an external venue gets the daily allowance
     air_trainees: true,            // all trainees
     air_trainer: true,             // if internal trainer travels from a branch
     chartered_transport: true,     // eligible at hotel/external venue
@@ -246,7 +246,7 @@ export const COST_MATRIX = [
     training_types: ['inhouse', 'coaching_mentoring'],
     venue: 'own_premise',
     trainer: 'overseas',
-    schemes: ['hcc', 'sbl'],       // SLB not applicable for overseas trainer
+    schemes: ['hcc', 'sbl', 'slb'], // ACM Guide p.8: overseas training providers are allowed under SLB
     course_fee: true,
     trainer_allowance: false,
     meal_trainees: true,
@@ -269,7 +269,7 @@ export const COST_MATRIX = [
     training_types: ['inhouse', 'coaching_mentoring'],
     venue: 'external_hotel',
     trainer: 'overseas',
-    schemes: ['hcc', 'sbl'],
+    schemes: ['hcc', 'sbl', 'slb'],
     course_fee: true,
     trainer_allowance: false,
     meal_trainees: false,
@@ -495,7 +495,7 @@ export const COST_MATRIX = [
     air_trainees: true,            // air ticket for overseas programmes
     air_trainer: false,
     chartered_transport: false,
-    consumable: true,              // engine adds RM100/group consumables for development
+    consumable: false,             // ACM Guide s.8 lists no consumables for development programmes
     consumable_slb_organiser_only: false,
     overseas_trainer_daily: false,
     overseas_assistance: false,
@@ -588,8 +588,10 @@ export function buildAcmReference(rates) {
         ['Course fee — Focus Area / Industry Specific / Professional Certification', 'As charged, per pax'],
         ['Internal trainer allowance', `${trainerAllow}. Prorated when fewer than ${R.inhouse.prorate_threshold} pax.`],
         ['Daily (travel) allowance', travel],
+        ['Daily (travel) allowance — half day', `Half of the daily rate: <100km: ${rm(A.travel_under_100 / 2)}/day/pax · ≥100km: ${rm(A.travel_over_100 / 2)}/day/pax`],
+        ['Trainer daily allowance (external trainer; internal trainer from a branch or at an external venue)', `Same as the trainee daily allowance, per trainer per day by the trainer's distance (half day: half rate)`],
         ['Meal allowance', meal],
-        ['Overseas trainer daily allowance', `${rm(A.overseas_trainer)}/trainer/day`],
+        ['Overseas trainer daily allowance', `${rm(A.overseas_trainer)}/trainer/day (half day ${rm(A.overseas_trainer / 2)})`],
         ['Consumable training materials', `${rm(A.consumable)}/group (no receipt needed up to ${rm(A.consumable)})`],
         ['Air ticket', 'Actual airfare (person count shown in the result)'],
         ['Chartered transport', 'As per quotation (external venue / hotel only)'],
@@ -608,13 +610,15 @@ export function buildAcmReference(rates) {
         ['Minimum pax — ROT', `${R.inhouse.min_pax_rot} trainee`],
         ['Maximum pax per group — in-house general courses', `Non-technical ${R.inhouse.max_pax_soft} × number of trainers · Technical ${R.inhouse.max_pax_tech} × number of trainers (Employer's Circular No. 3/2024)`],
         ['Prorating', `Fewer than ${R.inhouse.prorate_threshold} pax: course fee and trainer allowance = (rate ÷ ${R.inhouse.prorate_threshold}) × pax`],
-        ['Public / ROT public / overseas training', `Max ${cap} pax per employer get financial assistance; the rest are self-funded`],
+        ['Public / ROT public', `Max ${cap} pax per employer get financial assistance (course fee, daily allowance, air ticket); the rest are self-funded. Host + branches count as one employer; each subsidiary is its own employer. Professional certification courses: actual number of trainees`],
+        ['Overseas training', `Max ${cap} pax get financial assistance; the rest are self-funded`],
         ['Seminar & conference', `Min ${R.seminar.min_pax_inhouse} attendees (in-house) or ${R.seminar.min_pax_public_per_tp} per Training Provider (public). Speakers: min 1 (half day), 2 (full day)`],
-        ['Extra travel day', 'Staff ≥100km get +1 travel day (full-day training only)'],
+        ['Extra travel day', 'Not automatic — only when the employer applies for it: staff ≥100km who travel one day before or after get +1 day of daily allowance (full-day training only)'],
+        ['Half day (at least 4 hours)', 'Half of the fixed allowances: daily (travel), trainer and overseas trainer allowances at half rate; meal at the half-day rate'],
         ['Overseas extra days', `Up to ${R.overseas.extra_days_max} extra travel days of daily allowance`],
         ['Attendance', 'At least 75% of training hours; allowances prorated by attendance'],
         ['Audit risk', `In-house groups above ${R.audit_risk_pax} pax may be asked for justification`],
-        ['Actual course fee', 'Claimed up to the ACM ceiling; anything above is a deficit the employer funds'],
+        ['Actual course fee', 'Claimed up to the ACM ceiling (general courses, e-learning hour table); anything above is a deficit the employer funds. Focus Area / Industry Specific / Certification: the actual fee as charged'],
       ],
     },
     {
@@ -624,10 +628,10 @@ export function buildAcmReference(rates) {
       rows: [
         ['HCC — HRD Corp Claimable Courses', 'HRD Corp pays the Training Provider directly', 'HRD Corp-accredited', 'All training types'],
         ['SBL — Skim Bantuan Latihan', 'Employer pays first, then claims reimbursement', 'Non-registered allowed (internal, vendor, association, NGO, overseas, govt body)', 'All training types'],
-        ['SLB — Skim Latihan Bersama', 'Employer pays first, then claims reimbursement', 'Non-registered allowed; no overseas trainer', 'In-house, ROT in-house, coaching & mentoring only'],
+        ['SLB — Skim Latihan Bersama', 'Employer pays first, then claims reimbursement', 'Non-registered allowed (internal, vendor, association, NGO, govt body, overseas training provider)', 'In-house, ROT in-house, coaching & mentoring only'],
       ],
       notes: [
-        'SLB: at least 2 participating employers. The in-house group rate is divided by total pax and each employer pays for its own pax — it never switches to the public rate. Only the organising employer may claim consumables. A Joint Training Letter is required.',
+        'SLB: at least 2 participating employers. The in-house group rate is divided by total pax (prorated when fewer than 5 pax) and each employer pays for its own pax — it never switches to the public rate. Only the organising employer may claim consumables. A Joint Training Letter is required.',
         'HCC / SBL with subsidiaries: the course fee switches to the public per-pax rate and each company pays for its own pax. Travel, meal and air ticket are calculated for the host company and its branches only — each subsidiary claims those in its own grant application.',
         'ALAT, IT, ITS, FWT, OJT and SGM have their own rules — see the notes on each scheme’s form.',
       ],
@@ -639,10 +643,12 @@ export function buildAcmReference(rates) {
       rows: [
         ['Course fee (external / overseas trainer)', groupFee, groupFee],
         ['Internal trainer allowance (instead of course fee)', trainerAllow, trainerAllow],
-        ['Meal allowance', `Host company staff (+1 for an internal trainer not from a branch): ${meal}`, 'Not claimable'],
-        ['Daily (travel) allowance', `Branch staff: ${travel}`, `All trainees: ${travel}`],
+        ['Meal allowance', `Host company staff (+ each internal trainer based at the premises): ${meal}`, 'Not claimable'],
+        ['Daily (travel) allowance', `Branch staff: ${travel} (half day: half rate)`, `All trainees: ${travel} (half day: half rate)`],
+        ['External trainer allowance', `${travel} per trainer per day by the trainer's distance (half day: half rate)`, `${travel} per trainer per day by the trainer's distance (half day: half rate)`],
+        ['Internal trainer daily allowance', `Internal trainer from a branch: ${travel} per trainer per day (no meal for that trainer)`, `Every internal trainer: ${travel} per trainer per day`],
         ['Air ticket', 'Branch staff; trainer if travelling (external trainer only when branch / subsidiary staff attend; overseas trainer always; internal trainer from a branch)', 'All trainees; trainer as for own premises (external trainer always)'],
-        ['Overseas trainer daily allowance', `${rm(A.overseas_trainer)}/trainer/day`, `${rm(A.overseas_trainer)}/trainer/day`],
+        ['Overseas trainer daily allowance', `${rm(A.overseas_trainer)}/trainer/day (half day ${rm(A.overseas_trainer / 2)})`, `${rm(A.overseas_trainer)}/trainer/day (half day ${rm(A.overseas_trainer / 2)})`],
         ['Chartered transport', 'Not claimable', 'As per quotation'],
         ['Consumable materials', `${rm(A.consumable)}/group`, `${rm(A.consumable)}/group`],
         ['Licensed Training Materials (LTM)', 'As charged — needs an HRD Corp Special Approval Letter', 'As charged — needs an HRD Corp Special Approval Letter'],
@@ -655,7 +661,8 @@ export function buildAcmReference(rates) {
       columns: ['Cost item', 'Own premises / own location', 'External venue / hotel'],
       rows: [
         ['Meal allowance', `All trainees (host and branch staff, each at their own workplace): ${meal}`, 'Not claimable'],
-        ['Daily (travel) allowance', 'Not claimable — nobody travels', `All trainees: ${travel}`],
+        ['Daily (travel) allowance', 'Not claimable — nobody travels', `All trainees: ${travel} (half day: half rate; ROT public: max ${cap} per employer)`],
+        ['Trainer allowance (daily / meal)', 'Not claimable — the trainer delivers online', 'Not claimable — the trainer delivers online'],
         ['Air ticket', 'Not claimable for ROT', 'Not claimable for ROT'],
         ['Chartered transport', 'Not claimable', 'As per quotation'],
         ['Course fee — ROT in-house', `${groupFee} (external trainer); internal trainer gets the trainer allowance instead`, `${groupFee} (external trainer); internal trainer gets the trainer allowance instead`],
@@ -672,9 +679,9 @@ export function buildAcmReference(rates) {
       title: 'Public training',
       columns: ['Cost item', 'Rule'],
       rows: [
-        ['Course fee', `${paxFee}; max ${cap} pax per employer`],
-        ['Daily (travel) allowance', `All trainees: ${travel}`],
-        ['Air ticket', 'All trainees (actual airfare)'],
+        ['Course fee', `General: ${paxFee}; Focus Area / Industry Specific: as charged. Max ${cap} pax per employer (host + branches = one employer; each subsidiary its own). Professional certification: as charged, actual number of trainees`],
+        ['Daily (travel) allowance', `All trainees: ${travel} (half day: half rate), max ${cap} per employer except certification courses`],
+        ['Air ticket', `All trainees (actual airfare), max ${cap} per employer except certification courses`],
         ['Meal allowance / consumables', 'Not claimable'],
       ],
       notes: ['HCC and SBL only.'],
@@ -696,7 +703,7 @@ export function buildAcmReference(rates) {
       title: 'E-learning and mobile e-learning',
       columns: ['Cost item', 'Rule'],
       rows: [
-        ['Course fee', `${hourList} per pax`],
+        ['Course fee', `${hourList} per pax (ceiling — an actual fee below it is claimed as charged)`],
         ['More than ' + maxHr + ' hours', `Each further block: up to 4 hrs = ${rm(R.elearning.hour_table[4])} (half-day block), otherwise ${rm(R.elearning.hour_table[maxHr])} (full-day block)`],
         ['All other allowances', 'Not claimable (self-paced, no trainer, no travel)'],
       ],
@@ -723,8 +730,7 @@ export function buildAcmReference(rates) {
         ['Study allowance (full-time only)', `Local ${rm(R.development.study_local)}/month · Overseas ${rm(R.development.study_overseas)}/month (50% for overseas Master’s / PhD)`],
         ['Thesis allowance (full-time Master’s / PhD)', `Master's ${rm(R.development.thesis_masters)} · PhD ${rm(R.development.thesis_phd)} per trainee`],
         ['Air ticket', 'Overseas programmes: 50% of airfare'],
-        ['Consumable materials', `${rm(A.consumable)}/group`],
-        ['Meal / daily (travel) / trainer allowance', 'Not claimable'],
+        ['Meal / daily (travel) / trainer allowance / consumables', 'Not claimable'],
       ],
       notes: ['Minimum 3 months (1 month = 30 training days). HCC: accredited programme at an accredited institution. SBL: locally or overseas accredited (MQA) programme. Course fees must be fully borne by the employer.'],
     },

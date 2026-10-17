@@ -2,6 +2,9 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import PurchaseResult from './PurchaseResult';
 import AlatForm from '../alat/AlatForm';
+import { exportResultPDF } from '../../utils/pdfExportWeb';
+
+jest.mock('../../utils/pdfExportWeb', () => ({ exportResultPDF: jest.fn() }));
 
 global.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -44,4 +47,13 @@ test('opening a saved ALAT plan adds nothing to History; pressing Calculate adds
     await act(async () => { calc.click(); });
     expect(history()).toHaveLength(1);
     expect(history()[0]).toMatchObject({ scheme: 'alat', trainingType: 'ALAT — Training Facilities & Renovation' });
+});
+
+test('History stores no pax for purchase schemes; the PDF carries the plan name', async () => {
+    await act(async () => { root.render(<PurchaseResult schemeId="alat" schemeLabel="ALAT" result={null} fromPlanId="p1" fromPlanName="Room plan" />); });
+    await act(async () => { root.render(<PurchaseResult schemeId="alat" schemeLabel="ALAT" result={result(800)} fromPlanId="p1" fromPlanName="Room plan" />); });
+    expect(history()[0].totalPax).toBeNull();
+    const pdf = [...container.querySelectorAll('button')].find(b => b.textContent === 'Export as PDF');
+    await act(async () => { pdf.click(); });
+    expect(exportResultPDF).toHaveBeenCalledWith(result(800), { scheme: 'alat', trainingType: 'ALAT', planName: 'Room plan' });
 });

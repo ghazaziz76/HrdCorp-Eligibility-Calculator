@@ -9,6 +9,22 @@ import SuggestionsPanel from './SuggestionsPanel';
 import { suggestImprovements } from '../utils/suggestImprovements';
 import BrochureUpload from './BrochureUpload';
 
+// Types the engine accepts under SLB (engine check "SLB restricted to in-house…").
+const SLB_TYPES = ['inhouse', 'rot_inhouse', 'coaching_mentoring'];
+// Types that show the Training Venue box.
+const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'rot_public', 'coaching_mentoring', 'development'];
+const ROT_TYPES = ['rot_inhouse', 'rot_public'];
+const INHOUSE_TYPES = ['inhouse', 'rot_inhouse', 'coaching_mentoring'];
+// On-screen names of the Type of Training options (used in messages).
+const TYPE_LABELS = {
+    inhouse: 'In-House (Face-to-Face)', rot_inhouse: 'ROT — In-House', coaching_mentoring: 'Coaching & Mentoring',
+    rot_public: 'ROT — Public', public: 'Local Public Training', seminar_conference: 'Local Seminar & Conference',
+    elearning: 'E-Learning', mobile_elearning: 'Mobile E-Learning', overseas: 'Overseas Training',
+    overseas_seminar: 'Overseas Seminar & Conference', development: 'Development Programme',
+};
+// The Actual Course Fee box is shown (and used) for every type except in-house with an internal trainer.
+export const feeBoxShown = (type, trainerType) => !(INHOUSE_TYPES.includes(type) && trainerType === 'internal');
+
 // =============================================
 // HRDCORP ELIGIBILITY CALCULATOR
 // =============================================
@@ -31,6 +47,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const [elearningHours,  setElearningHours]  = React.useState(7);
     const [extraDays,       setExtraDays]       = React.useState(0);
     const [internalTrainerFromBranch, setInternalTrainerFromBranch] = React.useState(false);
+    const [trainerKmDistance, setTrainerKmDistance] = React.useState('under_100');
+    const [extraTravelDay,  setExtraTravelDay]  = React.useState(false);
     const [numberOfSpeakers, setNumberOfSpeakers] = React.useState(2);
     const [hasLTM,          setHasLTM]          = React.useState(false);
     const [ltmActualCost,   setLtmActualCost]   = React.useState('');
@@ -62,6 +80,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
       numberOfTrainers: setNumberOfTrainers, venue: setVenue, courseCategory: setCourseCategory,
       duration: setDuration, days: setDays, elearningHours: setElearningHours,
       extraDays: setExtraDays, internalTrainerFromBranch: setInternalTrainerFromBranch,
+      trainerKmDistance: setTrainerKmDistance, extraTravelDay: setExtraTravelDay,
       numberOfSpeakers: setNumberOfSpeakers, hasLTM: setHasLTM, ltmActualCost: setLtmActualCost,
       devLevel: setDevLevel, skmLevel: setSkmLevel, devLocation: setDevLocation,
       devPrivateInstitution: setDevPrivateInstitution, devMonths: setDevMonths,
@@ -88,6 +107,23 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     // ROT at own premises / own location: nobody travels, so no KM and meal allowance only.
     const isROTOwnLocation    = isROT && !isHotel;
     const isGeneralCourse     = courseCategory === 'general_non_technical' || courseCategory === 'general_technical' || courseCategory === 'general';
+    const showFeeBox          = feeBoxShown(trainingType, trainerType);
+    // Trainer travel distance: face-to-face in-house / coaching, when the trainer travels.
+    const showTrainerKm       = (trainingType === 'inhouse' || isCoachingMentoring) &&
+        (trainerType === 'external' || (trainerType === 'internal' && (internalTrainerFromBranch || isHotel)));
+    // Which trainee rows show a Distance box (mirrors the JSX below). Subsidiaries are left
+    // out: the engine gives them no travel allowance (each applies separately).
+    const hostShowsKm         = (isHotel || isPublic || isROTPublic || isSeminar) && !isROTOwnLocation;
+    const branchesShowKm      = !isElearning && !isAnyOverseas && !isDevelopment && !isROTOwnLocation;
+    const anyOver100          = (hostShowsKm && host.kmDistance === 'over_100') ||
+        (branchesShowKm && branches.some(b => b.kmDistance === 'over_100'));
+    // Extra travelling day: full-day in-house / public types with a trainee row at >=100 km
+    // (overseas has its own extra-days select; ROT at own location has no travel).
+    const showExtraTravelDay  = !isElearning && !isAnyOverseas && !isDevelopment && !isROTOwnLocation &&
+        duration === 'full_day' && anyOver100;
+    // The PDF carries the plan's name only while the form still holds that plan's scheme.
+    const planScheme          = initialPlan ? (initialPlan.inputs?.scheme || initialPlan.schemeId) : null;
+    const pdfPlanName         = initialPlan && scheme === planScheme ? initialPlan.name : undefined;
 
     // ── Branch handlers ───────────────────────────────────────
     const addBranch = () => setBranches(prev => [...prev, { label: `Branch ${prev.length + 1}`, pax: 2, kmDistance: 'under_100' }]);
@@ -138,6 +174,9 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             extraDays:                 parseInt(extraDays)          || 0,
             elearningHours:            parseInt(elearningHours)     || 7,
             internalTrainerFromBranch,
+            // Only sent while its box is on screen; otherwise the engine default applies.
+            trainerKmDistance:         showTrainerKm ? trainerKmDistance : undefined,
+            extraTravelDay:            showExtraTravelDay && extraTravelDay === true,
             numberOfSpeakers:          parseInt(numberOfSpeakers)   || 1,
             hasLTM,
             ltmActualCost:             parseFloat(ltmActualCost)    || 0,
@@ -150,7 +189,9 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             devPrivateInstitution,
             devMonths:                 parseInt(devMonths)          || 3,
             devFullTime,
-            actualCourseFeePerPax:     parseFloat(actualCourseFee)  || 0
+            // A hidden fee box is not used; a box holding 0 is an explicit fee of 0.
+            actualCourseFeePerPax:     showFeeBox ? (parseFloat(actualCourseFee) || 0) : 0,
+            actualCourseFeeProvided:   showFeeBox && String(actualCourseFee ?? '').trim() !== '',
         }, liveRates || null, liveClaimDocs || null);
         setResult(r);
         setDirty(false);
@@ -204,7 +245,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         <label style={lStyle}>Distance to Venue</label>
                         <select style={iStyle} value={kmDistance} onChange={e => onKmChange(e.target.value)}>
                             <option value="under_100">&lt;100 km → RM250/day/pax</option>
-                            <option value="over_100">≥100 km → RM500/day/pax (+1 extra travel day for full-day)</option>
+                            <option value="over_100">≥100 km → RM500/day/pax</option>
                         </select>
                     </div>
                 )}
@@ -217,6 +258,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const currentInputs = {
         scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue, courseCategory,
         duration, days, elearningHours, extraDays, internalTrainerFromBranch,
+        trainerKmDistance, extraTravelDay,
         numberOfSpeakers, hasLTM, ltmActualCost, devLevel, skmLevel, devLocation,
         devPrivateInstitution, devMonths, devFullTime, actualCourseFee,
         host, branches, subsidiaries,
@@ -244,64 +286,95 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     };
 
     // Side effects of changing the training type (shared by the select and the brochure upload).
+    // Functional / constant updates only, so it is safe to call from a stale closure.
     const resetForType = (t) => {
         // Clear subsidiaries for non-inhouse types
-        if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setSubsidiaries([]);
+        if (!INHOUSE_TYPES.includes(t)) setSubsidiaries([]);
         // Clear branches for e-learning, overseas, and development types
         if (['elearning', 'mobile_elearning', 'overseas', 'overseas_seminar', 'development'].includes(t)) setBranches([]);
         // Reset LTM when not in-house
-        if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setHasLTM(false);
+        if (!INHOUSE_TYPES.includes(t)) setHasLTM(false);
+        // ROT has no Overseas Trainer option: fall back to External so the engine matches the screen.
+        if (ROT_TYPES.includes(t)) setTrainerType(prev => prev === 'overseas' ? 'external' : prev);
+        // No Venue box for this type: back to own premises (no leftover hotel / chartered transport).
+        if (!VENUE_TYPES.includes(t)) { setVenue('employer_premises'); dropTag('venue'); }
     };
 
     // ── Brochure upload: AI fills up to six boxes ─────────
-    // Type first; venue only for types that have a Venue box; nulls are skipped.
-    const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'rot_public', 'coaching_mentoring', 'development'];
-    const SLB_TYPES   = ['inhouse', 'rot_inhouse'];
+    // The reply arrives after a wait, so it is applied against the values on screen *now*
+    // (latest ref), never against the render in which the file was picked. A box the user
+    // edited while the brochure was being read is left alone.
+    const latest = React.useRef(null);
+    latest.current = { scheme, trainingType, trainerType, fromBrochure };
+    const edits = React.useRef({});       // key -> number of hand edits
+    const readStart = React.useRef(null); // copy of `edits` when the read started
+    const onBrochureStart = () => { readStart.current = { ...edits.current }; };
+    const editedDuringRead = (k) => readStart.current != null && (edits.current[k] || 0) !== (readStart.current[k] || 0);
     // These types hide the Days and Duration boxes.
     const NO_DAYS_TYPES = ['elearning', 'mobile_elearning', 'development'];
     // A box the previous brochure filled goes back to its default when the new brochure
     // doesn't have that detail (a box typed by hand lost its tag and is kept).
     const BROCHURE_DEFAULTS = { trainingProgrammeName: '', trainingType: 'inhouse', venue: 'employer_premises', days: '1', duration: 'full_day', actualCourseFee: '' };
+    // Returns { feeUsed, notice } for the upload box (SST warning / SLB message).
     const applyBrochure = (fields) => {
         const f = fields || {};
+        const now = latest.current;
         const filled = [];
-        let type = trainingType;
-        if (fromBrochure.has('trainingType') && f.trainingType == null) {
-            SETTERS.trainingType(BROCHURE_DEFAULTS.trainingType);
-            resetForType(BROCHURE_DEFAULTS.trainingType);
-            type = BROCHURE_DEFAULTS.trainingType;
+        let type = now.trainingType;
+        let notice = '';
+        const slbRejects = f.trainingType != null && now.scheme === 'slb' && !SLB_TYPES.includes(f.trainingType);
+        if (slbRejects) {
+            notice = `This brochure is a ${TYPE_LABELS[f.trainingType] || f.trainingType} course, which SLB doesn't cover — Type of Training was not changed.`;
         }
-        if (f.trainingType != null && (scheme !== 'slb' || SLB_TYPES.includes(f.trainingType))) {
-            SETTERS.trainingType(f.trainingType);
-            resetForType(f.trainingType);
-            type = f.trainingType;
-            filled.push('trainingType');
+        if (!editedDuringRead('trainingType')) {
+            if (f.trainingType != null && !slbRejects) {
+                SETTERS.trainingType(f.trainingType);
+                resetForType(f.trainingType);
+                type = f.trainingType;
+                filled.push('trainingType');
+            } else if (f.trainingType == null && now.fromBrochure.has('trainingType')) {
+                SETTERS.trainingType(BROCHURE_DEFAULTS.trainingType);
+                resetForType(BROCHURE_DEFAULTS.trainingType);
+                type = BROCHURE_DEFAULTS.trainingType;
+            }
         }
-        if (f.venue != null && VENUE_TYPES.includes(type)) { SETTERS.venue(f.venue); filled.push('venue'); }
-        const keys = NO_DAYS_TYPES.includes(type) ? ['actualCourseFee'] : ['days', 'duration', 'actualCourseFee'];
+        if (VENUE_TYPES.includes(type) && !editedDuringRead('venue')) {
+            if (f.venue != null) { SETTERS.venue(f.venue); filled.push('venue'); }
+            // An online (ROT) brochure with no venue: trainees join from their own premises.
+            else if (filled.includes('trainingType') && ROT_TYPES.includes(type)) SETTERS.venue('employer_premises');
+        }
+        // The fee only goes into a box that is shown (not in-house with an internal trainer).
+        const keys = NO_DAYS_TYPES.includes(type) ? [] : ['days', 'duration'];
+        if (feeBoxShown(type, now.trainerType)) keys.push('actualCourseFee');
         keys.forEach(k => {
-            if (f[k] != null) { SETTERS[k](f[k]); filled.push(k); }
+            if (f[k] != null && !editedDuringRead(k)) { SETTERS[k](f[k]); filled.push(k); }
         });
-        if (f.trainingProgrammeName != null) {
+        if (f.trainingProgrammeName != null && !editedDuringRead('trainingProgrammeName')) {
             setTrainingProgrammeName(String(f.trainingProgrammeName));
             filled.push('trainingProgrammeName');
         }
-        fromBrochure.forEach(k => {
-            if (k === 'trainingType' || filled.includes(k)) return;
+        now.fromBrochure.forEach(k => {
+            if (k === 'trainingType' || filled.includes(k) || editedDuringRead(k)) return;
             if (k === 'trainingProgrammeName') setTrainingProgrammeName('');
             else SETTERS[k](BROCHURE_DEFAULTS[k]);
         });
         setFromBrochure(new Set(filled));
         setResult(null);
         setDirty(true);
+        readStart.current = null;
+        return { feeUsed: filled.includes('actualCourseFee'), notice };
     };
-    // A box edited by hand loses its tag.
-    const unmark = (k) => setFromBrochure(prev => {
+    const dropTag = (k) => setFromBrochure(prev => {
         if (!prev.has(k)) return prev;
         const next = new Set(prev);
         next.delete(k);
         return next;
     });
+    // A box edited by hand loses its tag (and is not overwritten by a brochure read in progress).
+    const unmark = (k) => {
+        edits.current[k] = (edits.current[k] || 0) + 1;
+        dropTag(k);
+    };
     const brochureTag = (k) => fromBrochure.has(k) ? (
         <span data-testid="from-brochure" style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '400', color: '#757575', background: '#eeeeee', padding: '1px 6px', borderRadius: '8px' }}>from brochure</span>
     ) : null;
@@ -350,9 +423,10 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         <div key={s.value} onClick={() => {
                             setScheme(s.value);
                             setResult(null);
-                            // SLB: in-house and ROT in-house only — reset if current type not eligible
-                            if (s.value === 'slb' && !['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(trainingType)) {
+                            // SLB: in-house, ROT in-house and coaching only — reset if current type not eligible
+                            if (s.value === 'slb' && !SLB_TYPES.includes(trainingType)) {
                                 setTrainingType('inhouse');
+                                resetForType('inhouse');
                                 unmark('trainingType');
                                 setBranches([]);
                             }
@@ -372,7 +446,11 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             {scheme && (<>
 
             {/* ── BROCHURE UPLOAD (AI fills six boxes) ─────────── */}
-            <BrochureUpload onFields={applyBrochure} />
+            <BrochureUpload
+                onFields={applyBrochure}
+                onStart={onBrochureStart}
+                hideSst={!(showFeeBox && fromBrochure.has('actualCourseFee'))}
+            />
 
             {/* ── TRAINING PROGRAMME NAME ─────────────────────── */}
             <div style={{ background: '#fff', border: '1px solid #c8e6c9', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
@@ -409,7 +487,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             <optgroup label="── In-House / Coaching ──────────────">
                                 <option value="inhouse">In-House (Face-to-Face)</option>
                                 <option value="rot_inhouse">ROT — In-House (Remote, Employer-organised)</option>
-                                {scheme !== 'slb' && <option value="coaching_mentoring">Coaching &amp; Mentoring</option>}
+                                <option value="coaching_mentoring">Coaching &amp; Mentoring</option>
                             </optgroup>
                             {scheme !== 'slb' && (
                                 <optgroup label="── Public / Remote ──────────────────">
@@ -517,6 +595,17 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             <label htmlFor="branchTrainer" style={{ ...lStyle, marginBottom: 0, cursor: 'pointer', color: '#333' }}>
                                 Internal trainer is from a branch (entitled to air ticket &amp; travel allowance)
                             </label>
+                        </div>
+                    )}
+
+                    {/* Trainer travel distance — face-to-face in-house / coaching, when the trainer travels */}
+                    {showTrainerKm && (
+                        <div style={rStyle}>
+                            <label style={lStyle}>Trainer travel distance</label>
+                            <select style={iStyle} value={trainerKmDistance} onChange={e => { setTrainerKmDistance(e.target.value); setResult(null); }}>
+                                <option value="under_100">&lt;100 km → RM250/day/pax</option>
+                                <option value="over_100">≥100 km → RM500/day/pax</option>
+                            </select>
                         </div>
                     )}
 
@@ -665,7 +754,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             </div>
 
             {/* ── ACTUAL COURSE FEE (from brochure / offer letter) ── */}
-            {(isPublic || isROTPublic || isLocalSeminar || isAnyOverseas || isDevelopment || (isInhouse && trainerType !== 'internal')) && (
+            {showFeeBox && (
                 <div style={{ background: '#fff8e1', border: '1px solid #ffe082', borderRadius: '10px', padding: '20px', marginBottom: '24px' }}>
                     <h4 style={{ margin: '0 0 4px', color: '#e65100' }}>💰 Actual Course Fee (from Brochure / Offer Letter)</h4>
                     <p style={{ fontSize: '12px', color: '#795548', margin: '0 0 14px', lineHeight: '1.5' }}>
@@ -814,6 +903,16 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         </button>
                     )}
                 </div>
+                {showExtraTravelDay && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px' }}>
+                        <input type="checkbox" id="extraTravelDay" checked={extraTravelDay}
+                            onChange={e => { setExtraTravelDay(e.target.checked); setResult(null); }}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer', flexShrink: 0 }} />
+                        <label htmlFor="extraTravelDay" style={{ ...lStyle, marginBottom: 0, cursor: 'pointer', color: '#333' }}>
+                            Trainees travel one day before or after (extra travelling day — must be applied for with HRD Corp)
+                        </label>
+                    </div>
+                )}
                 {!isInhouse && (
                     <p style={{ fontSize: '11px', color: '#888', margin: '8px 0 0' }}>
                         ℹ️ Subsidiaries are only applicable for In-House training where the company organises the programme.
@@ -942,7 +1041,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
                     {/* Export PDF Button */}
                     <button
-                        onClick={() => exportResultPDF(result, { scheme, trainingType, totalPax, trainingProgrammeName })}
+                        onClick={() => exportResultPDF(result, { scheme, trainingType, totalPax, trainingProgrammeName, planName: pdfPlanName })}
                         style={{
                             display: 'block', width: '100%', marginTop: '16px', padding: '14px',
                             background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px',
@@ -987,7 +1086,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         inputs: {
                             scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue,
                             courseCategory, duration, days, elearningHours, extraDays,
-                            internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
+                            internalTrainerFromBranch, trainerKmDistance, extraTravelDay,
+                            numberOfSpeakers, hasLTM, ltmActualCost,
                             devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
                             devFullTime, actualCourseFee, host, branches, subsidiaries,
                         },
@@ -1002,7 +1102,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         inputs: {
                             scheme, trainingProgrammeName, trainingType, trainerType, numberOfTrainers, venue,
                             courseCategory, duration, days, elearningHours, extraDays,
-                            internalTrainerFromBranch, numberOfSpeakers, hasLTM, ltmActualCost,
+                            internalTrainerFromBranch, trainerKmDistance, extraTravelDay,
+                            numberOfSpeakers, hasLTM, ltmActualCost,
                             devLevel, skmLevel, devLocation, devPrivateInstitution, devMonths,
                             devFullTime, actualCourseFee, host, branches, subsidiaries,
                         },

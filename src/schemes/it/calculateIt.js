@@ -1,6 +1,6 @@
 // IT — Information Technology & Computer-Aided Training.
 // Source: ACM Guide Jan 2026, section E.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const MAX = 25000;
 
 export function calculateIt({ computers = [], webcam = 0, internetSubscription = 0, lastApplicationDate = '' }) {

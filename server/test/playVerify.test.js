@@ -108,17 +108,17 @@ test('route stores rc_app_user_id once and never overwrites', async () => {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
     });
     const code = 'HRD-RCRC-RCRC-RCRC';
-    const r1 = await post({ code, feature_key: 'tge', rc_app_user_id: 'first' });
-    assert.deepEqual(await r1.json(), { success: true, data: { code, feature_key: 'tge' } });
+    const r1 = await post({ code, feature_key: 'hrd_grant_calculator', rc_app_user_id: 'first' });
+    assert.deepEqual(await r1.json(), { success: true, data: { code, feature_key: 'hrd_grant_calculator' } });
     const find = () => store.readJSON('activation-codes.json', []).find((c) => c.code === code);
     assert.equal(find().play.rc_app_user_id, 'first');
-    await post({ code, feature_key: 'tge', rc_app_user_id: 'second' });
+    await post({ code, feature_key: 'hrd_grant_calculator', rc_app_user_id: 'second' });
     assert.equal(find().play.rc_app_user_id, 'first');
 
     // existing entry with empty rc id gets it filled
     const code2 = 'HRD-RCR2-RCR2-RCR2';
-    await post({ code: code2, feature_key: 'tge' });
-    await post({ code: code2, feature_key: 'tge', rc_app_user_id: 'late' });
+    await post({ code: code2, feature_key: 'hrd_grant_calculator' });
+    await post({ code: code2, feature_key: 'hrd_grant_calculator', rc_app_user_id: 'late' });
     assert.equal(store.readJSON('activation-codes.json', []).find((c) => c.code === code2).play.rc_app_user_id, 'late');
 });
 

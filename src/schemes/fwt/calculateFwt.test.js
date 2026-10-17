@@ -15,9 +15,9 @@ test('in-house INTERNAL, daily allowance: trainer allowance uses auto groups', (
     numberOfTrainees: 10, trainingDays: 3, dailyDuration: 'full_day',
     distance: 'under_100', allowanceType: 'daily', durationType: 'less_than_month',
   });
-  // groups 1; trainer 1400*3*1 = 4200; daily 250*10*3 = 7500 => 11,700
-  expect(r.totalClaimable).toBe(11700);
-  expect(r.items.some(i => /Meal Allowance/i.test(i.label))).toBe(false);
+  // groups 1; trainer 1400*3*1 = 4200; daily 250*10*3 = 7500; trainer meal 100*3*1 = 300 => 12,000
+  expect(r.totalClaimable).toBe(12000);
+  expect(r.items.some(i => /^Meal Allowance/i.test(i.label))).toBe(false); // trainee meal (trainer meal is separate)
 });
 
 test('short programme: meal allowance chosen instead of daily', () => {
@@ -25,8 +25,8 @@ test('short programme: meal allowance chosen instead of daily', () => {
     subType: 'inhouse', trainerType: 'internal', numberOfTrainees: 10,
     trainingDays: 3, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month',
   });
-  // trainer 4200; meal 100*10*3 = 3000 => 7,200
-  expect(r.totalClaimable).toBe(7200);
+  // trainer 4200; meal 100*10*3 = 3000; trainer meal 100*3 = 300 => 7,500
+  expect(r.totalClaimable).toBe(7500);
 });
 
 test('in-house EXTERNAL, 40 soft skills, 15 days full = RM157,500 course fee (1 group)', () => {
@@ -125,4 +125,43 @@ test('empty input -> zero with guidance warning + supporting docs', () => {
   expect(r.warnings.some(w => /enter the training details/i.test(w))).toBe(true);
   expect(r.supportingDocs.grantSubmission.length).toBeGreaterThan(0);
   expect(r.supportingDocs.claimSubmission.length).toBeGreaterThan(0);
+});
+
+// ── ACM Jan 2026 Guide, FWT section ─────────────────────────────────────────
+describe('FWT half day (Table Additional Note 2: half day amount for all fees and allowances)', () => {
+  test('meal allowance RM50 per trainee per half day', () => {
+    const r = calculateFwt({ subType: 'inhouse', trainerType: 'external', numberOfTrainees: 10, trainingDays: 2, dailyDuration: 'half_day', allowanceType: 'meal', durationType: 'less_than_month' });
+    expect(feeOf(r, /^Meal Allowance/)).toBe(50 * 10 * 2);
+  });
+  test('daily allowance halved (RM125 / RM250)', () => {
+    const r = calculateFwt({ subType: 'inhouse', trainerType: 'external', numberOfTrainees: 10, trainingDays: 2, dailyDuration: 'half_day', distance: 'over_100', allowanceType: 'daily', durationType: 'less_than_month' });
+    expect(feeOf(r, /Trainee Daily Allowance/)).toBe(250 * 10 * 2);
+  });
+});
+
+describe('FWT under 1 month: trainer meal + consumables', () => {
+  test('internal trainer meal RM100/day per trainer (group)', () => {
+    const r = calculateFwt({ subType: 'inhouse', courseCategory: 'technical', trainerType: 'internal', numberOfTrainees: 30, trainingDays: 2, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month' });
+    expect(feeOf(r, /Internal Trainer Meal Allowance/)).toBe(100 * 2 * 2);
+  });
+  test('consumable training materials (in-house)', () => {
+    const r = calculateFwt({ subType: 'inhouse', trainerType: 'external', numberOfTrainees: 10, trainingDays: 2, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month', consumableCost: 300 });
+    expect(feeOf(r, /Consumable/)).toBe(300);
+  });
+});
+
+describe('FWT general public: max 9 trainees, course fee as charged', () => {
+  test('amounts are capped at 9 trainees', () => {
+    const r = calculateFwt({ subType: 'general_public', numberOfTrainees: 12, trainingDays: 1, dailyDuration: 'full_day', distance: 'under_100', allowanceType: 'daily', durationType: 'less_than_month' });
+    expect(feeOf(r, /Course Fee/)).toBe(1750 * 9);
+    expect(feeOf(r, /Trainee Daily Allowance/)).toBe(250 * 9);
+  });
+  test('courseFeeActual (per pax, whole course) is used when provided', () => {
+    const r = calculateFwt({ subType: 'general_public', numberOfTrainees: 3, trainingDays: 2, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month', courseFeeActual: 2500 });
+    expect(feeOf(r, /Course Fee/)).toBe(2500 * 3);
+  });
+  test('without courseFeeActual the ACM rate is used', () => {
+    const r = calculateFwt({ subType: 'general_public', numberOfTrainees: 3, trainingDays: 2, dailyDuration: 'full_day', allowanceType: 'meal', durationType: 'less_than_month', courseFeeActual: '' });
+    expect(feeOf(r, /Course Fee/)).toBe(1750 * 2 * 3);
+  });
 });

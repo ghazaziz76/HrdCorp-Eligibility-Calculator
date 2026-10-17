@@ -1,7 +1,7 @@
 // FWT — Future Workers Training.
 // Source: ACM Guide Jan 2026, section H (+ in-house course-fee rates from the ACM Fees section).
 // Three sub-types: in-house, public certification, general public.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const doc = (text) => ({ text });
 
 // In-house groups are derived from the number of trainees and the per-group cap
@@ -20,7 +20,9 @@ export function calculateFwt({
   dailyDuration = 'full_day',   // in-house: 'full_day' | 'half_day'
   distance = 'under_100',       // <1 month daily allowance: under_100 (250) | over_100 (500)
   allowanceType = 'daily',      // <1 month: 'daily' OR 'meal' — not both
-  courseFee = '',               // public courses only: course fee as charged
+  courseFee = '',               // public certification: course fee per pax, as charged
+  courseFeeActual = '',         // general public: optional actual course fee per pax (whole course), as charged.
+                                //   Used when provided (non-empty, >= 0); otherwise the ACM per-pax-per-day rate.
   durationType = 'less_than_month',
   months = '',
   monthlyAllowancePerTrainee = '',
@@ -34,6 +36,11 @@ export function calculateFwt({
   const days = Math.max(0, parseInt(trainingDays, 10) || 0);
   const perGroupMax = courseCategory === 'technical' ? 25 : 50;
   const groups = isInhouse ? groupsFor(trainees, courseCategory) : 0;
+  // ACM Guide FWT General Public Courses: "the maximum number of trainees is nine (9)".
+  const isGeneralPublic = subType === 'general_public';
+  const paxForAmounts = isGeneralPublic ? Math.min(trainees, 9) : trainees;
+  // ACM Table Additional Note 2: a 4-hour (half) day gets the half-day amount for all fees and allowances.
+  const half = fullDay ? 1 : 0.5;
 
   const items = [];
 
@@ -66,11 +73,20 @@ export function calculateFwt({
         amount: fee,
       });
     }
-  } else if (subType === 'general_public') {
-    // General public course: ACM general-public rate, per participant per day.
-    const rate = fullDay ? 1750 : 1000;
-    const fee = rate * days * trainees;
-    if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${rate.toLocaleString()}/pax/${fullDay ? 'day' : 'half-day'} × ${trainees} pax × ${days} day(s)`, amount: fee });
+  } else if (isGeneralPublic) {
+    // ACM Guide FWT: "Local training course fees are claimable as per charged." Use the actual fee when given,
+    // otherwise the ACM general-public rate per participant per day as an estimate.
+    const actualGiven = String(courseFeeActual ?? '').trim() !== '' && Number.isFinite(parseFloat(courseFeeActual));
+    const capNote = paxForAmounts < trainees ? ` (capped at 9 of ${trainees} trainees)` : '';
+    if (actualGiven) {
+      const perPax = Math.max(0, parseFloat(courseFeeActual));
+      const fee = perPax * paxForAmounts;
+      if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${perPax.toLocaleString()}/pax × ${paxForAmounts} pax — as charged${capNote}`, amount: fee });
+    } else {
+      const rate = fullDay ? 1750 : 1000;
+      const fee = rate * days * paxForAmounts;
+      if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${rate.toLocaleString()}/pax/${fullDay ? 'day' : 'half-day'} × ${paxForAmounts} pax × ${days} day(s)${capNote}`, amount: fee });
+    }
   } else {
     // Public certification: certification course fee charged per participant, as charged.
     const feePerPax = num(courseFee);
@@ -78,30 +94,47 @@ export function calculateFwt({
     if (fee > 0) items.push({ label: 'Course Fee', note: `RM ${feePerPax.toLocaleString()}/pax × ${trainees} pax — as charged`, amount: fee });
   }
 
-  if (isLess) {
-    // Short programme: EITHER the distance-based daily allowance OR meal — not both.
-    if (days > 0 && trainees > 0) {
-      if (allowanceType === 'meal') {
-        items.push({ label: 'Meal Allowance', note: `RM 100/day × ${trainees} pax × ${days} day(s)`, amount: 100 * trainees * days });
-      } else {
-        const dRate = distance === 'over_100' ? 500 : 250;
-        items.push({ label: 'Trainee Daily Allowance', note: `RM ${dRate}/day × ${trainees} pax × ${days} day(s) (or actual paid, whichever is lower)`, amount: dRate * trainees * days });
-      }
+  // Trainer meal: RM100/day per trainer (RM50 on a half day), one internal trainer per group.
+  const trainerMealRate = 100 * half;
+  const pushTrainerMeal = () => {
+    if (isInternal && days > 0 && groups > 0) {
+      items.push({ label: 'Internal Trainer Meal Allowance', note: `RM ${trainerMealRate}/day × ${days} day(s) × ${groups} trainer(s)${fullDay ? '' : ' (half-day rate)'}`, amount: trainerMealRate * days * groups });
     }
-  } else {
-    // Programme longer than 1 month: trainees' monthly allowance (employer-paid).
-    const mo = num(months);
-    const mAllow = num(monthlyAllowancePerTrainee);
-    if (mAllow > 0 && mo > 0 && trainees > 0) {
-      items.push({ label: 'Trainees Monthly Allowance', note: `RM ${mAllow.toLocaleString()}/mth × ${mo} mth × ${trainees} pax (paid by employer)`, amount: mAllow * mo * trainees });
-    }
-    if (isInternal && days > 0) {
-      items.push({ label: 'Internal Trainer Meal Allowance', note: `RM 100/day × ${days} day(s) × ${groups} trainer(s)`, amount: 100 * days * groups });
-    }
+  };
+  const pushConsumables = () => {
     if (isInhouse) {
       const cons = num(consumableCost);
       if (cons > 0) items.push({ label: 'Consumable Training Materials', note: 'As claimed', amount: cons });
     }
+  };
+
+  if (isLess) {
+    // Short programme: EITHER the distance-based daily allowance OR meal — not both.
+    // Half day: meal RM50, daily allowance at half rate ("half of the fixed trainee allowance").
+    const pax = paxForAmounts;
+    const capNote = pax < trainees ? ` (capped at 9 of ${trainees} trainees)` : '';
+    if (days > 0 && pax > 0) {
+      if (allowanceType === 'meal') {
+        const mRate = 100 * half;
+        items.push({ label: 'Meal Allowance', note: `RM ${mRate}/day × ${pax} pax × ${days} day(s)${fullDay ? '' : ' (half-day rate)'}${capNote}`, amount: mRate * pax * days });
+      } else {
+        const dRate = (distance === 'over_100' ? 500 : 250) * half;
+        items.push({ label: 'Trainee Daily Allowance', note: `RM ${dRate}/day × ${pax} pax × ${days} day(s)${fullDay ? '' : ' (half-day rate)'} (or actual paid, whichever is lower)${capNote}`, amount: dRate * pax * days });
+      }
+    }
+    // ACM Guide FWT in-house, "Less than 1 month" column also lists: "Trainer meal allowance is RM100/day per
+    // trainer" and "Consumable training materials".
+    pushTrainerMeal();
+    pushConsumables();
+  } else {
+    // Programme longer than 1 month: trainees' monthly allowance (employer-paid).
+    const mo = num(months);
+    const mAllow = num(monthlyAllowancePerTrainee);
+    if (mAllow > 0 && mo > 0 && paxForAmounts > 0) {
+      items.push({ label: 'Trainees Monthly Allowance', note: `RM ${mAllow.toLocaleString()}/mth × ${mo} mth × ${paxForAmounts} pax (paid by employer)`, amount: mAllow * mo * paxForAmounts });
+    }
+    pushTrainerMeal();
+    pushConsumables();
   }
 
   const totalClaimable = items.reduce((s, i) => s + i.amount, 0);
@@ -113,7 +146,7 @@ export function calculateFwt({
     if (trainees > 0 && trainees < 2) warnings.push('In-house FWT requires a minimum of 2 trainees.');
     if (groups > 0) warnings.push(`${trainees} trainee(s) require ${groups} trainer(s)/group(s) at a maximum of ${perGroupMax} trainees per group (${courseCategory === 'technical' ? 'technical' : 'soft skills'}).`);
   }
-  if (subType === 'general_public' && trainees > 9) warnings.push('General public FWT allows a maximum of 9 trainees per employer.');
+  if (isGeneralPublic && trainees > 9) warnings.push(`General public FWT allows a maximum of 9 trainees per employer — amounts are calculated for 9 of ${trainees} trainees.`);
 
   warnings.push('FWT funds pre-employment training, with the aim of employing the trainees upon completion. Each training session must be at least 4 hours.');
   if (isInhouse) warnings.push('In-house: internal trainer allowance is RM1,400/full day or RM800/half day per group. External training-provider course fee is capped at RM10,500/full day or RM6,000/half day per group (prorated if a group has fewer than 5 trainees).');

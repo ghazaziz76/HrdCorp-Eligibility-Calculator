@@ -35,6 +35,12 @@ const TRAINING_NAMES = {
     overseas: 'Overseas', overseas_seminar: 'Overseas Seminar', development: 'Development',
 };
 
+// Pax only for the training-course schemes; purchase / allowance entries store null
+// (older ones stored 0).
+const TRAINING_SCHEMES = ['hcc', 'sbl', 'slb'];
+export const historyPax = (item) =>
+    item && item.totalPax != null && TRAINING_SCHEMES.includes(item.scheme) ? item.totalPax : null;
+
 const HistoryTab = () => {
     const [history, setHistory] = useState(() => {
         try { return JSON.parse(localStorage.getItem('hrd_calc_history') || '[]'); } catch { return []; }
@@ -87,7 +93,7 @@ const HistoryTab = () => {
                             </div>
                             <span style={{ fontSize: '11px', color: '#999' }}>
                                 {new Date(item.timestamp).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                {' · '}{item.totalPax} pax
+                                {historyPax(item) != null && <>{' · '}{historyPax(item)} pax</>}
                             </span>
                         </div>
                         <div style={{ textAlign: 'right' }}>

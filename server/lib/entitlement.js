@@ -1,6 +1,12 @@
 // Pure entitlement rules. No I/O. All day/month math is Malaysia time, UTC+8 fixed.
 
 const PLAN_LIMITS = { play: 10, yearly: 50, monthly: 3, vip: 5 };
+// Play codes registered at or after this moment unlock the TGE only after RevenueCat has
+// verified the purchase (play.verified_at). Older codes are grandfathered.
+// TGE_PLAY_VERIFY_CUTOFF overrides it (tests).
+// App 1.1.1 (build 12) is the first to send the RevenueCat id; older app versions can't be
+// verified, so enforcement starts once that build has reached users.
+const PLAY_VERIFY_CUTOFF = '2026-11-15T00:00:00Z';
 const FAILED_DAILY_CAP = 10;
 const MY_OFFSET_MS = 8 * 3600e3;
 
@@ -68,6 +74,16 @@ function nextReset(anchorDate, now) {
 
 const isNewsletter = (entry) => entry.source === 'newsletter';
 
+// A Play code that still needs RevenueCat verification before the TGE unlocks.
+function isPlayPending(entry) {
+  if (!entry || isNewsletter(entry)) return false;
+  if (entry.play && entry.play.verified_at) return false;
+  const reg = Date.parse(entry.registered_at);
+  if (!Number.isFinite(reg)) return false; // no usable date: legacy, grandfathered
+  const cutoff = Date.parse(process.env.TGE_PLAY_VERIFY_CUTOFF || PLAY_VERIFY_CUTOFF);
+  return reg >= cutoff;
+}
+
 function anchorFor(entry) {
   if (isNewsletter(entry)) return (entry.newsletter && entry.newsletter.anchor_date) || null;
   const p = entry.play || {};
@@ -88,7 +104,7 @@ function computeAccess(entry, usage, ctx) {
   let tge;
   if (admin.revoked) tge = 'locked';
   else if (newsletter) tge = !nl.locked_reason && (nl.paying || nl.permanent) ? 'activated' : 'locked';
-  else tge = 'activated';
+  else tge = isPlayPending(entry) ? 'pending' : 'activated';
 
   let base = 0;
   if (newsletter) { if (nl.paying) base = PLAN_LIMITS[nl.plan_source] || 0; }
@@ -101,6 +117,7 @@ function computeAccess(entry, usage, ctx) {
 
   let reason;
   if (tge === 'locked') reason = 'locked';
+  else if (tge === 'pending') reason = 'pending_verification';
   else if (admin.ai_enabled === false) reason = 'admin_off';
   else if (limit <= 0) reason = newsletter ? 'not_paying' : 'play_unverified';
   else if (ctx.spendPaused) reason = 'spend_paused';
@@ -122,5 +139,5 @@ function computeAccess(entry, usage, ctx) {
 }
 
 module.exports = {
-  PLAN_LIMITS, FAILED_DAILY_CAP, myDay, myMonth, periodStart, nextReset, anchorFor, computeAccess,
+  PLAN_LIMITS, FAILED_DAILY_CAP, PLAY_VERIFY_CUTOFF, isPlayPending, myDay, myMonth, periodStart, nextReset, anchorFor, computeAccess,
 };

@@ -57,3 +57,9 @@ test('always includes the 50%-of-levy note + 6-month warning', () => {
   expect(r.warnings.some(w => /50%/.test(w) && /levy/i.test(w))).toBe(true);
   expect(r.warnings.some(w => /6 months/i.test(w))).toBe(true);
 });
+
+test('negative costs are treated as 0', () => {
+  const r = calculateAlat({ equipment: [{ cost: 4000 }, { cost: -1000 }], renovation: [{ cost: -500 }] });
+  expect(r.totalRequested).toBe(4000);
+  expect(r.totalClaimable).toBe(4000);
+});

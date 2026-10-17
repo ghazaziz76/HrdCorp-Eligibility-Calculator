@@ -58,7 +58,7 @@ test('success counts 1 and returns remaining', async () => {
 test('failed read does not count, adds spend, 11th failure same day → 403 failed_cap', async () => {
     const d = await sync({ email: 'fl@y.com' });
     setSpend(0);
-    // 100k input tokens = $0.30 each, so ten failures stay under the $20 ceiling.
+    // 100k input tokens = $0.01 each at the Haiku default ($0.10/MTok).
     holder.fn = async () => { throw Object.assign(new Error('bad read'), { usage: { input_tokens: 100000, output_tokens: 0 } }); };
     for (let i = 0; i < 10; i++) {
         const r = await upload(d.code);
@@ -67,7 +67,7 @@ test('failed read does not count, adds spend, 11th failure same day → 403 fail
         assert.strictEqual(j.reason, 'read_failed');
         assert.strictEqual(j.ai.used, 0);
     }
-    assert.ok(Math.abs(readData('tge-spend.json').usd - 3) < 1e-6, 'failed reads count toward spend');
+    assert.ok(Math.abs(readData('tge-spend.json').usd - 0.1) < 1e-6, 'failed reads count toward spend');
     const r = await upload(d.code);
     assert.strictEqual(r.status, 403);
     assert.strictEqual((await r.json()).reason, 'failed_cap');
@@ -158,7 +158,7 @@ test('stats file contains only the 4 fields + month', async () => {
     assert.match(last.month, /^\d{4}-\d{2}$/);
 });
 
-test('stub extractor → 503 not_configured and nothing counted toward used', async () => {
+test('stub extractor → 503 ai_unavailable and nothing counted toward used', async () => {
     const d = await sync({ email: 'stub@y.com' });
     setSpend(1);
     // Explicit empty key so a key in the environment never reaches the real API from a test.
@@ -167,27 +167,27 @@ test('stub extractor → 503 not_configured and nothing counted toward used', as
     const r = await upload(d.code);
     assert.strictEqual(r.status, 503);
     const j = await r.json();
-    assert.strictEqual(j.reason, 'not_configured');
+    assert.strictEqual(j.reason, 'ai_unavailable');
     assert.strictEqual(j.ai.used, 0);
     assert.strictEqual(readData('tge-spend.json').usd, 1);
     assert.strictEqual((await access(d.code)).ai.used, 0);
     assert.strictEqual(readData('tge-usage.json')[d.code], undefined);
 });
 
-test('image over 4.5 MB -> 413, nothing counted, API not called', async () => {
+test('image over the image limit (3.7 MB) -> 413, nothing counted, API not called', async () => {
     const d = await sync({ email: 'img@y.com' });
     const { extractBrochure } = require('../ai/extractor');
     let apiCalls = 0;
     const fakeApi = async () => { apiCalls++; return { ok: true, json: async () => ({}) }; };
     holder.fn = (a) => extractBrochure(a, { apiKey: 'test-key', fetch: fakeApi });
     const failedBefore = (() => { try { return (readData('tge-usage.json')[d.code] || {}).failed; } catch { return undefined; } })();
-    const img = Buffer.alloc(4.5 * 1024 * 1024 + 1);
+    const img = Buffer.alloc(require('../ai/extractor').IMAGE_MAX_BYTES + 1);
     img[0] = 0xff; img[1] = 0xd8; img[2] = 0xff;
     const fd = new FormData();
     fd.append('file', new Blob([img], { type: 'image/jpeg' }), 'big.jpg');
     const r = await fetch(srv.base + '/api/employer/ai-brochure', { method: 'POST', headers: { 'x-tge-code': d.code }, body: fd });
     assert.strictEqual(r.status, 413);
-    assert.deepStrictEqual(await r.json(), { success: false, message: 'Image too large (max 4.5 MB)' });
+    assert.deepStrictEqual(await r.json(), { success: false, message: 'Image too large (max 3.7 MB)' });
     assert.strictEqual(apiCalls, 0);
     assert.strictEqual((await access(d.code)).ai.used, 0);
     const failedAfter = (() => { try { return (readData('tge-usage.json')[d.code] || {}).failed; } catch { return undefined; } })();

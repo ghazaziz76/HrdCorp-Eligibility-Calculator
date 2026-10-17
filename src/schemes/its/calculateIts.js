@@ -1,6 +1,6 @@
 // ITS — Industrial Training Scheme.
 // Source: ACM Guide Jan 2026, section G.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const doc = (text) => ({ text });
 
 export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAllowance = '', months = '', ppePerIntern = '', insurancePerIntern = '' }) {
@@ -10,7 +10,9 @@ export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAl
   const ppe = num(ppePerIntern);
   const insPer = num(insurancePerIntern);
 
-  const allowanceTotal = mAllow * mo * interns;
+  // ACM Guide (ITS): "Maximum duration: Twelve (12) months" — only 12 months are claimable.
+  const claimMonths = Math.min(mo, 12);
+  const allowanceTotal = mAllow * claimMonths * interns;
   const ppeTotal = ppe * interns;
   const insTotal = insPer * interns;
   const totalRequested = allowanceTotal + ppeTotal + insTotal;
@@ -22,7 +24,7 @@ export function calculateIts({ levyBalance = '', numberOfInterns = '', monthlyAl
   const claimable = exceeds ? cap : totalRequested;
 
   const items = [];
-  if (allowanceTotal > 0) items.push({ label: 'Monthly Allowance', note: `RM ${mAllow.toLocaleString()}/mth × ${mo} mth × ${interns} intern(s)`, amount: allowanceTotal });
+  if (allowanceTotal > 0) items.push({ label: 'Monthly Allowance', note: `RM ${mAllow.toLocaleString()}/mth × ${claimMonths} mth × ${interns} intern(s)` + (claimMonths < mo ? ` (capped at 12 of ${mo} months)` : ''), amount: allowanceTotal });
   if (ppeTotal > 0) items.push({ label: 'PPE (one set per intern)', note: `RM ${ppe.toLocaleString()} × ${interns} intern(s)`, amount: ppeTotal });
   if (insTotal > 0) items.push({ label: 'Insurance', note: `RM ${insPer.toLocaleString()}/intern × ${interns} intern(s) — as per premium`, amount: insTotal });
   if (exceeds) items.push({ label: 'Limited to 50% of levy balance (ball-park)', note: `50% of RM ${levy.toLocaleString()}`, amount: cap - totalRequested });

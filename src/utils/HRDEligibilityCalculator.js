@@ -36,8 +36,20 @@ import { CLAIM_DOCS as CLAIM_DOCS_STATIC } from '../data/acm-documents.js';
  *   elearningHours            {number}  1–7
  *   internalTrainerFromBranch {boolean}
  *   numberOfSpeakers          {number}  for seminar/conference min-speaker validation
+ *   trainerKmDistance         {string}  'under_100' (default) | 'over_100' — distance the external trainer, or an
+ *                                       internal trainer from a branch / at an external venue, travels. Drives the
+ *                                       trainer daily allowance (RM250 / RM500 per trainer per day, halved for half day).
+ *   extraTravelDay            {boolean} default false. The employer applied for the extra travelling day: adds 1 day of
+ *                                       daily (travel) allowance for trainees >=100km on a full-day programme.
  *   hasLTM                    {boolean} Licensed Training Materials flag (in-house only)
  *   ltmActualCost             {number}  actual LTM cost (0 = as charged)
+ *
+ *   actualCourseFeePerPax     {number}  actual course fee per pax for the whole course/programme (NOT per day).
+ *   actualCourseFeeProvided   {boolean} default false. Contract: the actual fee is used when
+ *                                       actualCourseFeeProvided === true (then 0 is a real fee of RM0) OR
+ *                                       actualCourseFeePerPax > 0 (legacy callers that pass `parseFloat(x) || 0`).
+ *                                       When used it replaces the "as charged" estimate, and for capped items the claim
+ *                                       is min(actual, ACM ceiling).
  *
  *   host          {object}  { pax, kmDistance }
  *     pax         {number}  host company staff attending
@@ -55,7 +67,8 @@ import { CLAIM_DOCS as CLAIM_DOCS_STATIC } from '../data/acm-documents.js';
 export function calculateEligibility(inputs, ratesOverride = null, claimDocsOverride = null) {
     // Use live data from server if provided, otherwise fall back to static file values
     // eslint-disable-next-line no-shadow
-    const RATES      = ratesOverride     || RATES_STATIC;
+    // Live rates may be partial — deep-merge them over the bundled rates so a missing key can't produce NaN.
+    const RATES      = _mergeRates(RATES_STATIC, ratesOverride);
     // eslint-disable-next-line no-shadow
     const CLAIM_DOCS = claimDocsOverride || CLAIM_DOCS_STATIC;
     const {
@@ -83,9 +96,18 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
         devPrivateInstitution     = false,
         devMonths                 = 3,
         devFullTime               = true,
+        // Trainer travel distance (external trainer / internal trainer away from own base)
+        trainerKmDistance         = 'under_100',
+        // Extra travelling day — only when the employer applies for it
+        extraTravelDay            = false,
         // Actual fee input — per pax total for the full course/programme (NOT per day)
-        actualCourseFeePerPax     = 0
+        actualCourseFeePerPax:    actualFeeRaw = 0,
+        actualCourseFeeProvided   = false
     } = inputs;
+
+    const actualCourseFeePerPax = Math.max(0, Number(actualFeeRaw) || 0);
+    // See the contract in the JSDoc above: an explicit flag lets RM0 be a real fee.
+    const hasActualFee = actualCourseFeeProvided === true || actualCourseFeePerPax > 0;
 
     // Supporting document labels depend on scheme
     const courseFeeDoc = scheme === 'hcc'
@@ -109,8 +131,10 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     // isPublicFee: training types whose course fee uses the public per-pax rate (isLocalSeminar only, not overseas seminar)
     const isPublicFee         = isPublic || isROTPublic || isLocalSeminar;
     const isInhouse           = trainingType === 'inhouse' || isROTInhouse || isCoachingMentoring;
-    // FIX: removed `&& !isROT` — ROT at external venue is a valid hotel scenario
-    const isHotel             = venue === 'external_hotel';
+    // The venue only applies to training types whose form has a venue box; a leftover
+    // 'external_hotel' from another type (public, overseas, seminar, e-learning) is ignored.
+    const hasVenueChoice      = ['inhouse', 'rot_inhouse', 'rot_public', 'coaching_mentoring', 'development'].includes(trainingType);
+    const isHotel             = hasVenueChoice && venue === 'external_hotel';
 
     // Course category flags — supports legacy 'general' alias as non-technical
     const isGeneralNonTech = courseCategory === 'general_non_technical';
@@ -146,25 +170,40 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             ? (rate / RATES.inhouse.prorate_threshold) * pax
             : rate;
 
+    // ACM Guide: "For training conducted at least four (4) hours per day - employers are eligible to
+    // obtain financial assistance at half of the fixed trainee allowance." (Table Additional Note 2:
+    // half day amount for all fees and allowances.) → RM125 / RM250 on a half day.
+    const halfFactor = isHalfDay ? 0.5 : 1;
     const travelRate = (kmDistance) =>
-        kmDistance === 'over_100'
+        (kmDistance === 'over_100'
             ? RATES.allowances.travel_over_100
-            : RATES.allowances.travel_under_100;
+            : RATES.allowances.travel_under_100) * halfFactor;
 
     const kmLabel = (kmDistance) => kmDistance === 'over_100' ? '≥100km' : '<100km';
 
-    // DEFICIT 11 FIX: +1 extra travel day for staff ≥100km (full day training only)
+    // ACM Guide: "An extra travelling day is not an automatic eligibility. It can only be given if the
+    // employer applies for it ... only entitled ... if they travel one day before or one day after the
+    // training programme." Half-day programmes never qualify.
     const travelDaysFor = (kmDistance) =>
-        !isHalfDay && kmDistance === 'over_100' ? days + 1 : days;
+        extraTravelDay === true && !isHalfDay && kmDistance === 'over_100' ? days + 1 : days;
+
+    // Public 9-trainee cap, applied PER EMPLOYER (host + branches = one employer; each subsidiary is its own).
+    // ACM Guide (Public Training): "Financial assistance will be provided for a maximum of nine (9) trainees
+    // per employer. However, the actual number of attending trainees can be considered ... public
+    // certification programme." Seminars/conferences have no maximum in the Guide.
+    const isPublicCapped = (isPublic || isROTPublic) && courseCategory !== 'certification';
+    const publicCap      = RATES.public_training.max_pax_per_employer;
+    const capPax         = (pax) => isPublicCapped ? Math.min(pax, publicCap) : pax;
 
     const mealRate = isHalfDay ? RATES.allowances.meal_half : RATES.allowances.meal_full;
 
     // ── SCHEME VALIDATION WARNINGS ───────────────────────────
 
-    // DEFICIT 13 FIX: SLB + overseas trainer not applicable
+    // ACM Guide p.8 lists "Overseas training providers" among the non-registered providers allowed under SLB.
     if (scheme === 'slb' && trainerType === 'overseas') {
         warnings.push(
-            `⚠️ SLB scheme does not support overseas trainers. An overseas trainer is not applicable under SLB.`
+            `ℹ️ SLB with an overseas trainer: overseas training providers are one of the non-registered training providers ` +
+            `allowed under SLB. For in-house courses the employer must provide relevant justification for engaging the overseas training provider.`
         );
     }
 
@@ -270,7 +309,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             if (scheme === 'slb') {
                 // BUG #1 FIX: SLB always uses group_rate ÷ total_pax regardless of subsidiaries.
                 const rate      = isHalfDay ? RATES.inhouse.half_day : RATES.inhouse.full_day;
-                const hasActual = actualCourseFeePerPax > 0;
+                const hasActual = hasActualFee;
                 const perCompany = [];
                 let   slbTotal   = 0;
 
@@ -307,7 +346,11 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                         perCompany
                     });
                 } else {
-                    const perPaxRate = totalPax > 0 ? rate / totalPax : rate;
+                    // ACM Table §1 B: "Prorated for less than 5 pax" — applies to SLB too
+                    // (Guide: "RM10,500/5 trainees = RM2,100 per trainee").
+                    const perPaxRate = totalPax > 0 ? prorateGroup(rate, totalPax) / totalPax : rate;
+                    const slbProrated = totalPax > 0 && totalPax < RATES.inhouse.prorate_threshold;
+                    const divisor     = slbProrated ? RATES.inhouse.prorate_threshold : totalPax;
 
                     const addSLBRow = (lbl, pax) => {
                         if (pax <= 0) return;
@@ -315,7 +358,8 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                         slbTotal += share;
                         perCompany.push({
                             label:  lbl, pax, amount: share,
-                            note:   `RM${rate.toLocaleString()}/day ÷ ${totalPax} pax × ${pax} pax × ${days} day(s)`
+                            note:   `RM${rate.toLocaleString()}/day ÷ ${divisor} pax × ${pax} pax × ${days} day(s)` +
+                                    (slbProrated ? ' (prorated — less than 5 pax)' : '')
                         });
                     };
                     addSLBRow('Host Company', hostPax);
@@ -326,7 +370,8 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                         label:     'B) Course Fee',
                         eligible:  true,
                         amount:    slbTotal,
-                        note:      `SLB — Group rate RM${rate.toLocaleString()}/day ÷ ${totalPax} pax = RM${Math.round(perPaxRate).toLocaleString()}/pax/day (shared proportionally per employer)`,
+                        note:      `SLB — Group rate RM${rate.toLocaleString()}/day ÷ ${divisor} pax = RM${Math.round(perPaxRate).toLocaleString()}/pax/day (shared proportionally per employer)` +
+                                   (slbProrated ? ' (prorated — less than 5 pax)' : ''),
                         documents: courseFeeDoc,
                         perCompany
                     });
@@ -335,7 +380,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                 // HCC/SBL with subsidiaries → public per-pax rate
                 const sysRate         = isHalfDay ? RATES.public_training.half_day : RATES.public_training.full_day;
                 const sysTotalPerPax  = sysRate * days;
-                const hasActual       = actualCourseFeePerPax > 0;
+                const hasActual       = hasActualFee;
                 const claimPerPax     = hasActual ? Math.min(actualCourseFeePerPax, sysTotalPerPax) : sysTotalPerPax;
                 const deficitPerPax   = hasActual ? Math.max(0, actualCourseFeePerPax - sysTotalPerPax) : 0;
                 const ratePerDay      = claimPerPax / days;
@@ -384,7 +429,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                 // HCC/SBL, no subsidiaries → in-house group rate
                 const rate      = isHalfDay ? RATES.inhouse.half_day : RATES.inhouse.full_day;
                 const ceiling   = Math.round(prorateGroup(rate, totalPax) * days);
-                const hasActual = actualCourseFeePerPax > 0;
+                const hasActual = hasActualFee;
                 const totalActual = hasActual ? Math.round(actualCourseFeePerPax * totalPax) : ceiling;
                 const claimAmount = Math.min(totalActual, ceiling);
                 const deficit     = hasActual ? Math.max(0, totalActual - ceiling) : 0;
@@ -407,7 +452,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             // As charged (focus area / industry specific / certification) → per pax
             const perCompany = [];
             let totalCourseFee = 0;
-            const hasActual = actualCourseFeePerPax > 0;
+            const hasActual = hasActualFee;
 
             const addEstRow = (label, pax) => {
                 if (pax <= 0) return;
@@ -442,49 +487,78 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
 
     // PUBLIC TRAINING / ROT-PUBLIC / LOCAL SEMINAR-CONFERENCE
     if (isPublicFee) {
-        if (isGeneralCourse) {
-            // BUG #2 FIX: Cap eligible pax at 9 per employer. No in-house rate switch.
-            const maxPax      = isLocalSeminar ? totalPax : RATES.public_training.max_pax_per_employer;
-            const eligiblePax = Math.min(totalPax, maxPax);
-            const excessPax   = totalPax - eligiblePax;
+        // Each employer is capped separately (host + branches = one employer; each subsidiary its own).
+        // Local seminars and certification courses are not capped (see isPublicCapped above).
+        const employers = [];
+        const hostGroupPax = hostPax + branchPaxTotal;
+        if (hostGroupPax > 0) {
+            employers.push({
+                label: branchPaxTotal > 0 ? `Host Company + Branches (${hostPax} + ${branchPaxTotal} pax)` : 'Host Company',
+                pax:   hostGroupPax
+            });
+        }
+        subsidiaries.forEach(s => {
+            const p = parseInt(s.pax) || 0;
+            if (p > 0) employers.push({ label: s.label || 'Subsidiary', pax: p });
+        });
+        const eligiblePax = employers.reduce((sum, e) => sum + capPax(e.pax), 0);
+        const excessPax   = totalPax - eligiblePax;
 
+        let perPaxClaim, perPaxDeficit, feeNote, isEstimate = false, rowNote;
+        if (isGeneralCourse) {
             const sysRate        = isHalfDay ? RATES.public_training.half_day : RATES.public_training.full_day;
             const sysTotalPerPax = sysRate * days;
-            const hasActual      = actualCourseFeePerPax > 0;
-            const claimPerPax    = hasActual ? Math.min(actualCourseFeePerPax, sysTotalPerPax) : sysTotalPerPax;
-            const deficitPerPax  = hasActual ? Math.max(0, actualCourseFeePerPax - sysTotalPerPax) : 0;
-            const amount         = Math.round(claimPerPax * eligiblePax);
-            const _def2          = deficitPerPax > 0 ? Math.round(deficitPerPax * eligiblePax) : 0;
-
-            push({
-                label:     'B) Course Fee',
-                eligible:  true,
-                amount,
-                note:      hasActual
-                    ? `Actual RM${actualCourseFeePerPax.toLocaleString()}/pax — ACM ceiling RM${sysTotalPerPax.toLocaleString()}/pax` +
-                      (deficitPerPax > 0
-                          ? ` — ceiling applied — HRD Corp pays RM${amount.toLocaleString()} / 💰 Deficit RM${_def2.toLocaleString()} to be funded from employer's own budget`
-                          : ` — within ACM ceiling — HRD Corp pays RM${amount.toLocaleString()}`)
-                    : `ACM rate: RM${sysRate}/pax/day × ${eligiblePax} pax × ${days} day(s)`,
-                documents: courseFeeDoc
-            });
-
-            if (excessPax > 0) {
-                warnings.push(
-                    `⚠️ Pax cap applied: Only ${eligiblePax} of ${totalPax} pax are eligible for financial assistance ` +
-                    `(maximum ${RATES.public_training.max_pax_per_employer} pax per employer for public/ROT training). ` +
-                    `The remaining ${excessPax} pax must be self-funded by the employer.`
-                );
-            }
+            perPaxClaim   = hasActualFee ? Math.min(actualCourseFeePerPax, sysTotalPerPax) : sysTotalPerPax;
+            perPaxDeficit = hasActualFee ? Math.max(0, actualCourseFeePerPax - sysTotalPerPax) : 0;
+            const amount  = Math.round(perPaxClaim * eligiblePax);
+            const _def2   = Math.round(perPaxDeficit * eligiblePax);
+            feeNote = hasActualFee
+                ? `Actual RM${actualCourseFeePerPax.toLocaleString()}/pax — ACM ceiling RM${sysTotalPerPax.toLocaleString()}/pax × ${eligiblePax} pax` +
+                  (perPaxDeficit > 0
+                      ? ` — ceiling applied — HRD Corp pays RM${amount.toLocaleString()} / 💰 Deficit RM${_def2.toLocaleString()} to be funded from employer's own budget`
+                      : ` — within ACM ceiling — HRD Corp pays RM${amount.toLocaleString()}`)
+                : `ACM rate: RM${sysRate}/pax/day × ${eligiblePax} pax × ${days} day(s)`;
+            rowNote = (pax) => `RM${Math.round(perPaxClaim).toLocaleString()}/pax × ${pax} pax`;
         } else {
-            push({
-                label:     'B) Course Fee',
-                eligible:  true,
-                amount:    Math.round(RATES.as_charged_estimate * totalPax * days),
-                note:      `${_categoryLabel(courseCategory)} — estimated at RM${RATES.as_charged_estimate}/pax/day`,
-                documents: courseFeeDoc,
-                isEstimate: true
-            });
+            // Focus Area / Industry Specific / Professional Certification: "As charged" — the actual fee
+            // when given, otherwise an estimate.
+            perPaxClaim   = hasActualFee ? actualCourseFeePerPax : RATES.as_charged_estimate * days;
+            perPaxDeficit = 0;
+            isEstimate    = !hasActualFee;
+            feeNote = hasActualFee
+                ? `${_categoryLabel(courseCategory)} — actual RM${actualCourseFeePerPax.toLocaleString()}/pax × ${eligiblePax} pax (as charged)`
+                : `${_categoryLabel(courseCategory)} — estimated at RM${RATES.as_charged_estimate}/pax/day × ${eligiblePax} pax × ${days} day(s)`;
+            rowNote = (pax) => hasActualFee
+                ? `Actual RM${actualCourseFeePerPax.toLocaleString()}/pax × ${pax} pax`
+                : `RM${RATES.as_charged_estimate}/pax/day × ${pax} pax × ${days} day(s) (est.)`;
+        }
+
+        const perCompany = employers.map(e => {
+            const p = capPax(e.pax);
+            return {
+                label:  e.label,
+                pax:    p,
+                amount: Math.round(perPaxClaim * p),
+                note:   rowNote(p) + (p < e.pax ? ` (capped at ${publicCap} of ${e.pax} pax)` : '')
+            };
+        });
+
+        push({
+            label:     'B) Course Fee',
+            eligible:  true,
+            amount:    Math.round(perPaxClaim * eligiblePax),
+            note:      feeNote,
+            documents: courseFeeDoc,
+            perCompany,
+            ...(isEstimate ? { isEstimate: true } : {})
+        });
+
+        if (excessPax > 0) {
+            warnings.push(
+                `⚠️ Pax cap applied: Only ${eligiblePax} of ${totalPax} pax are eligible for financial assistance ` +
+                `(maximum ${publicCap} pax per employer for public/ROT public training; professional certification courses are not capped). ` +
+                `The remaining ${excessPax} pax must be self-funded by the employer.`
+            );
         }
     }
 
@@ -513,11 +587,20 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             }
         }
 
+        // The hour table is a ceiling ("Max RM875/day/pax"): with an actual fee, claim min(actual, ceiling) per pax.
+        const elClaimPerPax  = hasActualFee ? Math.min(actualCourseFeePerPax, ratePerPax) : ratePerPax;
+        const elDeficitPerPax = hasActualFee ? Math.max(0, actualCourseFeePerPax - ratePerPax) : 0;
         push({
             label:     'B) Course Fee (E-Learning)',
             eligible:  true,
-            amount:    Math.round(ratePerPax * totalPax),
-            note:      `${noteBlocks.join(' | ')} — RM${ratePerPax}/pax × ${totalPax} pax`,
+            amount:    Math.round(elClaimPerPax * totalPax),
+            note:      `${noteBlocks.join(' | ')} — ` +
+                       (hasActualFee
+                           ? `actual RM${actualCourseFeePerPax.toLocaleString()}/pax — ACM ceiling RM${ratePerPax}/pax — RM${elClaimPerPax.toLocaleString()}/pax × ${totalPax} pax` +
+                             (elDeficitPerPax > 0
+                                 ? ` / 💰 Deficit RM${Math.round(elDeficitPerPax * totalPax).toLocaleString()} to be funded from employer's own budget`
+                                 : '')
+                           : `RM${ratePerPax}/pax × ${totalPax} pax`),
             documents: courseFeeDoc
         });
     }
@@ -528,7 +611,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
         const eligibleOvsPax = Math.min(totalPax, maxOvsPax);
         const excessOvsPax   = totalPax - eligibleOvsPax;
 
-        const hasActual   = actualCourseFeePerPax > 0;
+        const hasActual   = hasActualFee;
         const basePpax    = hasActual ? actualCourseFeePerPax : RATES.as_charged_estimate * days;
         const totalActual = basePpax * eligibleOvsPax;
         const claimable   = Math.round(totalActual * RATES.overseas.assistance_rate);
@@ -555,7 +638,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
 
     // DEFICIT 12 FIX: Overseas Seminar & Conference — 50% assistance on course fee
     if (isOverseasSeminar) {
-        const hasActual   = actualCourseFeePerPax > 0;
+        const hasActual   = hasActualFee;
         const basePpax    = hasActual ? actualCourseFeePerPax : RATES.as_charged_estimate * days;
         const totalActual = basePpax * totalPax;
         const claimable   = Math.round(totalActual * RATES.seminar.overseas_assistance);
@@ -579,7 +662,8 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     // DEFICIT 6 FIX: Removed separate ROT-inhouse meal block; integrated into unified block below.
     //                Trainer meal bonus suppressed for ROT (ACM Table 7: "host trainees only").
     // DEFICIT 7 FIX: Removed `!isROT` guard — ROT travel IS claimable (venue-dependent).
-    // DEFICIT 11 FIX: +1 extra travel day for staff ≥100km (full-day training only).
+    // Extra travel day for staff ≥100km only when applied for (extraTravelDay) and full-day training only.
+    // Half day: the daily (travel) allowance is halved (travelRate), the meal uses the half-day meal rate.
     // ─────────────────────────────────────────────────────────
     if (!isElearning && !isAnyOverseas && !isDevelopment) {
 
@@ -592,9 +676,14 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             // Includes: ROT at external venue, public, ROT-public, local seminar
             let travelTotal = 0;
             const breakdown = [];
+            // Public / ROT public: host + branches are one employer → at most 9 trainees get the allowance
+            // (filled in the order listed: host first, then branches).
+            let capLeft = isPublicCapped ? publicCap : Infinity;
 
-            const addTravel = (label, pax, kmDist) => {
+            const addTravel = (label, rawPax, kmDist) => {
+                const pax = Math.min(rawPax, capLeft);
                 if (pax <= 0) return;
+                capLeft -= pax;
                 const rate       = travelRate(kmDist);
                 const travelDays = travelDaysFor(kmDist);
                 const amt        = rate * pax * travelDays;
@@ -602,7 +691,9 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                 breakdown.push({
                     label, pax, amount: Math.round(amt),
                     note: `RM${rate}/pax/day × ${pax} pax × ${travelDays} day(s) (${kmLabel(kmDist)})` +
-                          (travelDays > days ? ' [+1 extra travel day for ≥100km]' : '')
+                          (isHalfDay ? ' (half-day rate)' : '') +
+                          (travelDays > days ? ' [+1 extra travel day for ≥100km]' : '') +
+                          (pax < rawPax ? ` (capped — max ${publicCap} pax per employer)` : '')
                 });
             };
 
@@ -630,20 +721,22 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             const mealBreakdown   = [];
             const travelBreakdown = [];
 
-            // BUG #3 FIX: Internal trainer at employer's own premise gets +1 meal pax.
-            // DEFICIT 6 FIX: Trainer meal bonus suppressed for ROT (trainer is remote).
-            const trainerMealBonus = (trainerType === 'internal' && !internalTrainerFromBranch && !isROT) ? 1 : 0;
+            // Internal trainers based at the employer's own premises get the meal allowance (one per trainer);
+            // an internal trainer from a branch gets the daily allowance instead (see "Internal Trainer Daily
+            // Allowance" below) — never both. Suppressed for ROT (trainer is remote).
+            const trainerMealBonus = (trainerType === 'internal' && !internalTrainerFromBranch && !isROT)
+                ? Math.max(1, parseInt(numberOfTrainers) || 1) : 0;
             const mealPaxHost = hostPax + trainerMealBonus;
 
             if (mealPaxHost > 0) {
                 const amt = mealRate * mealPaxHost * days;
                 mealTotal += amt;
                 mealBreakdown.push({
-                    label:  'Host Company' + (trainerMealBonus ? ' + Internal Trainer' : ''),
+                    label:  'Host Company' + (trainerMealBonus ? ' + Internal Trainer' + (trainerMealBonus > 1 ? 's' : '') : ''),
                     pax:    mealPaxHost,
                     amount: Math.round(amt),
                     note:   `RM${mealRate}/pax/day × ${mealPaxHost} pax` +
-                            (trainerMealBonus ? ` (${hostPax} staff + 1 trainer)` : '') +
+                            (trainerMealBonus ? ` (${hostPax} staff + ${trainerMealBonus} trainer${trainerMealBonus > 1 ? 's' : ''})` : '') +
                             ` × ${days} day(s)${isHalfDay ? ' (half-day)' : ''}`
                 });
             }
@@ -667,6 +760,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                 travelBreakdown.push({
                     label: b.label || 'Branch', pax: bPax, amount: Math.round(amt),
                     note: `RM${rate}/pax/day × ${bPax} pax × ${travelDays} day(s) (${kmLabel(b.kmDistance)})` +
+                          (isHalfDay ? ' (half-day rate)' : '') +
                           (travelDays > days ? ' [+1 extra travel day for ≥100km]' : '')
                 });
             });
@@ -700,14 +794,49 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     }
 
     // ─────────────────────────────────────────────────────────
-    // E) OVERSEAS TRAINER DAILY ALLOWANCE
+    // C) TRAINER DAILY ALLOWANCE (external trainer / internal trainer away from own base)
+    // Not for ROT — the trainer delivers online.
+    // ─────────────────────────────────────────────────────────
+    const nTrainers = Math.max(1, parseInt(numberOfTrainers) || 1);
+    const trainerRate = travelRate(trainerKmDistance);
+    const trainerNote = `RM${trainerRate}/trainer/day × ${nTrainers} trainer(s) × ${days} day(s) (${kmLabel(trainerKmDistance)})` +
+                        (isHalfDay ? ' (half-day rate)' : '');
+
+    // ACM Guide 2C: "Employers are allowed to claim external and overseas trainer allowances, subject to the
+    // maximum allowable rate as approved for trainees." ACM Table §1 C is ticked for external trainers at both venues.
+    if (isInhouse && !isROT && trainerType === 'external') {
+        push({
+            label:     'C) External Trainer Allowance',
+            eligible:  true,
+            amount:    Math.round(trainerRate * nTrainers * days),
+            note:      trainerNote + ' — food, accommodation and land transport for the trainer',
+            documents: CLAIM_DOCS.none
+        });
+    }
+
+    // ACM Guide 2A: "There will be no trainee allowance for trainees and internal trainers who are based at the
+    // organising employer's premises when conducting on-premise in-house training." So an internal trainer
+    // from a branch, or any internal trainer at an external venue / hotel, gets the daily allowance.
+    if (isInhouse && !isROT && trainerType === 'internal' && (internalTrainerFromBranch || isHotel)) {
+        push({
+            label:     'C) Internal Trainer Daily Allowance',
+            eligible:  true,
+            amount:    Math.round(trainerRate * nTrainers * days),
+            note:      trainerNote + (internalTrainerFromBranch ? ' — internal trainer travelling from a branch' : ' — internal trainer at an external venue'),
+            documents: CLAIM_DOCS.none
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // E) OVERSEAS TRAINER DAILY ALLOWANCE (halved on a half day — Table Additional Note 2)
     // ─────────────────────────────────────────────────────────
     if (isInhouse && trainerType === 'overseas') {
+        const ovtRate = RATES.allowances.overseas_trainer * halfFactor;
         push({
             label:     'E) Overseas Trainer Daily Allowance',
             eligible:  true,
-            amount:    Math.round(RATES.allowances.overseas_trainer * numberOfTrainers * days),
-            note:      `RM${RATES.allowances.overseas_trainer}/trainer/day × ${numberOfTrainers} trainer(s) × ${days} day(s)`,
+            amount:    Math.round(ovtRate * numberOfTrainers * days),
+            note:      `RM${ovtRate}/trainer/day × ${numberOfTrainers} trainer(s) × ${days} day(s)` + (isHalfDay ? ' (half-day rate)' : ''),
             documents: CLAIM_DOCS.none
         });
     }
@@ -729,6 +858,12 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
         airTicketGroups.push(`Host Company: ${hostPax} pax`);
     }
 
+    // Public: host + branches are one employer → at most 9 trainees get financial assistance.
+    if (isPublicCapped && airTicketEntitled > publicCap) {
+        airTicketGroups.push(`capped at ${publicCap} of ${airTicketEntitled} trainees (max ${publicCap} per employer)`);
+        airTicketEntitled = publicCap;
+    }
+
     // Trainer air ticket — in-house training only
     if (isInhouse) {
         // External trainer: air ticket only when there are branch/sub trainees (long-distance context)
@@ -745,8 +880,13 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
         }
     }
 
-    // Air ticket NOT claimable for e-learning or ROT (trainer delivers online)
-    if (airTicketEntitled > 0 && !isElearning && !isROT) {
+    // Air ticket NOT claimable for e-learning or ROT (trainer delivers online) — the count is 0 too,
+    // so callers reading airTicketEntitled don't show a hidden entitlement.
+    if (isElearning || isROT) {
+        airTicketEntitled = 0;
+        airTicketGroups.length = 0;
+    }
+    if (airTicketEntitled > 0) {
         push({
             label:         'G) Air Ticket',
             eligible:      true,
@@ -763,7 +903,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     // H) CHARTERED TRANSPORTATION
     // DEFICIT 8 FIX: ROT at external hotel CAN claim chartered transport — removed `!isROT`
     // ─────────────────────────────────────────────────────────
-    if (!isElearning && isHotel) {
+    if (!isElearning && !isDevelopment && isHotel) {
         push({ label: 'H) Chartered Transportation', eligible: true, amount: null, note: 'As per quotation', documents: CLAIM_DOCS.transport });
     }
 
@@ -859,7 +999,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             : devPrivateInstitution                  ? '100% (overseas — private higher education institution)'
             :                                          '50% (overseas)';
 
-        const hasActualDev   = actualCourseFeePerPax > 0;
+        const hasActualDev   = hasActualFee;
         const baseFeePerPax  = hasActualDev ? actualCourseFeePerPax : RATES.dev_estimate;
         const actualFeeTotal = baseFeePerPax * totalPax;
         const devClaimable   = Math.round(actualFeeTotal * feeAssistPct / 100);
@@ -884,15 +1024,8 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
         });
 
         // DEFICIT 9 FIX: Travel allowance is NOT applicable for development programme (ACM Table 8)
-        // Removed incorrectly added travel block that was previously here
-
-        push({
-            label:     'I) Consumable Training Materials',
-            eligible:  true,
-            amount:    RATES.allowances.consumable,
-            note:      `RM${RATES.allowances.consumable}/group (no receipt needed up to this amount)`,
-            documents: 'No receipt needed up to RM100. If total > RM100, itemised invoice required.'
-        });
+        // No consumables either: ACM Guide s.8 lists only course fees, thesis allowance, study allowance and
+        // airfare; s.6 consumables apply "when conducting in-house training".
 
         if (devFullTime) {
             const studyRate = isOverseasDev
@@ -1132,7 +1265,7 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
 
     // ── 8. Chartered transport invoice ───────────────────────
     // Applicable when venue is external hotel (non-elearning) — chartered transport is eligible
-    if (isHotel && !isElearning && !isAnyOverseas) {
+    if (isHotel && !isElearning && !isAnyOverseas && !isDevelopment) {
         grantDocs.push({ text: 'Invoice or quotation for chartered transportation (if any)' });
     }
 
@@ -1208,6 +1341,21 @@ function _categoryLabel(cat) {
         general_non_technical: 'General (Non-Technical) Course',
         general_technical:     'General (Technical) Course',
     }[cat] || cat;
+}
+
+// Deep-merge live rates over the bundled ones (plain objects only; numbers/arrays are replaced).
+function _mergeRates(base, live) {
+    if (!live || typeof live !== 'object') return base;
+    const out = { ...base };
+    for (const k of Object.keys(live)) {
+        const b = base[k];
+        const l = live[k];
+        if (l === undefined || l === null) continue;
+        out[k] = (b && typeof b === 'object' && !Array.isArray(b) && typeof l === 'object' && !Array.isArray(l))
+            ? _mergeRates(b, l)
+            : l;
+    }
+    return out;
 }
 
 function _devLevelLabel(level) {

@@ -94,3 +94,31 @@ describe('agrees with the engine for ROT', () => {
         expect(labels(pub)).not.toContain('I) Consumable Training Materials');
     });
 });
+
+describe('reference agrees with the engine after the ACM Jan 2026 fixes', () => {
+    const base = { scheme: 'hcc', trainerType: 'external', duration: 'full_day', days: 1, host: { pax: 5, kmDistance: 'under_100' } };
+    const labels = (r) => r.items.map(i => i.label);
+
+    test('development: no consumables in the engine, COST_MATRIX or the reference', () => {
+        const r = calculateEligibility({ ...base, trainingType: 'development' });
+        expect(labels(r)).not.toContain('I) Consumable Training Materials');
+        expect(getCostMatrixRow('development', null, null).consumable).toBe(false);
+        const dev = section(buildAcmReference(), 'development');
+        expect(dev.rows.some(r => /consumables/.test(r[0]) && r[1] === 'Not claimable')).toBe(true);
+    });
+
+    test('SLB allows an overseas trainer', () => {
+        expect(getCostMatrixRow('inhouse', 'own_premise', 'overseas').schemes).toContain('slb');
+        const schemes = section(buildAcmReference(), 'schemes');
+        expect(row(schemes, 'SLB — Skim Latihan Bersama')[2]).toMatch(/overseas training provider/);
+    });
+
+    test('extra travel day is not automatic; external trainer allowance is listed for in-house', () => {
+        const limits = section(buildAcmReference(), 'limits');
+        expect(row(limits, 'Extra travel day')[1]).toMatch(/Not automatic/);
+        const inh = section(buildAcmReference(), 'inhouse');
+        expect(row(inh, 'External trainer allowance')).toBeDefined();
+        const r = calculateEligibility({ ...base, trainingType: 'inhouse' });
+        expect(labels(r)).toContain('C) External Trainer Allowance');
+    });
+});

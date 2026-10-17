@@ -33,3 +33,8 @@ test('empty computers list -> zero with guidance warning', () => {
   expect(r.totalClaimable).toBe(0);
   expect(r.warnings.some(w => /add at least one/i.test(w))).toBe(true);
 });
+
+test('negative numbers are treated as 0', () => {
+  const r = calculateIt({ computers: [{ qty: 2, unitCost: 3000 }, { qty: -1, unitCost: 3000 }], webcam: -200, internetSubscription: 0 });
+  expect(r.totalRequested).toBe(6000);
+});

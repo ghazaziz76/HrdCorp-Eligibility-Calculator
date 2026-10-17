@@ -1,6 +1,6 @@
 import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import HRDCalculatorPage, { adminHref } from './HRDCalculatorPage';
+import HRDCalculatorPage, { adminHref, historyPax } from './HRDCalculatorPage';
 import { planExportMeta } from './MyPlansTab';
 import { ACMDataProvider } from '../context/ACMDataContext';
 import { SavedPlansProvider } from '../contexts/SavedPlansContext';
@@ -86,4 +86,33 @@ describe('My Plans PDF meta', () => {
         expect(meta.trainingType).toBe('ALAT — Training Facilities & Renovation');
         expect(meta.planName).toBe('Room');
     });
+});
+
+test('History shows pax only for training-course entries', async () => {
+    const base = { totalClaimable: 100, items: [], warnings: [], timestamp: '2026-10-01T00:00:00Z' };
+    localStorage.setItem('hrd_calc_history', JSON.stringify([
+        { ...base, id: '1', scheme: 'alat', trainingType: 'ALAT', totalPax: null },
+        { ...base, id: '2', scheme: 'its', trainingType: 'ITS', totalPax: 0 },
+        { ...base, id: '3', scheme: 'hcc', trainingType: 'inhouse', totalPax: 12 },
+    ]));
+    await renderTab('History');
+    expect(container.textContent).toContain('12 pax');
+    expect(container.textContent).not.toContain('0 pax');
+    expect(container.textContent).not.toContain('null pax');
+    expect(historyPax({ scheme: 'sgm', totalPax: 0 })).toBeNull();
+    expect(historyPax({ scheme: 'slb', totalPax: 0 })).toBe(0);
+});
+
+test('the footer allowance refreshes after an upload', async () => {
+    localStorage.setItem('hrd_activation_code', 'HRD-AAAA-BBBB-CCCC');
+    const ai = { enabled: true, limit: 50, used: 3, remaining: 47 };
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, data: { ai } }) }));
+    await act(async () => {
+        root.render(<ACMDataProvider><SavedPlansProvider><HRDCalculatorPage /></SavedPlansProvider></ACMDataProvider>);
+    });
+    expect(container.textContent).toContain('47 of 50 uploads left this month');
+    await act(async () => {
+        window.dispatchEvent(new CustomEvent('tge-ai-allowance-changed', { detail: { ...ai, used: 4, remaining: 46 } }));
+    });
+    expect(container.textContent).toContain('46 of 50 uploads left this month');
 });

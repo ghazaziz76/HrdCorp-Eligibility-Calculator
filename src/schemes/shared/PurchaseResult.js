@@ -10,7 +10,7 @@ const saveHistory = (schemeId, schemeLabel, result) => {
       id: Date.now().toString(),
       scheme: schemeId,
       trainingType: schemeLabel,
-      totalPax: 0,
+      totalPax: null, // no participants for purchase / allowance schemes
       totalClaimable: result.totalClaimable,
       items: result.items,
       warnings: result.warnings,
@@ -95,7 +95,7 @@ export default function PurchaseResult({ schemeId, schemeLabel, result, inputs, 
         </div>
       )}
 
-      <button onClick={() => exportResultPDF(result, { scheme: schemeId, trainingType: schemeLabel })}
+      <button onClick={() => exportResultPDF(result, { scheme: schemeId, trainingType: schemeLabel, planName: fromPlanName })}
         style={{ display: 'block', width: '100%', marginTop: '16px', padding: '14px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '700', cursor: 'pointer' }}>
         Export as PDF
       </button>

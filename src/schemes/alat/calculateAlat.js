@@ -1,6 +1,6 @@
 // ALAT — Training Facilities & Renovation Scheme.
 // Source: ACM Guide Jan 2026, section D.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const doc = (text) => ({ text });
 
 export function calculateAlat({ levyBalance = '', equipment = [], renovation = [] }) {

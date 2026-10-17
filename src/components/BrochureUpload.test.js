@@ -105,7 +105,11 @@ test.each([
     [422, { success: false, reason: 'read_failed', ai }, "We couldn't read the details from this file. It didn't use up an upload."],
     [413, { success: false, message: 'too big' }, 'File too large (max 10 MB)'],
     [503, { success: false, reason: 'not_configured', ai }, "Brochure reading isn't available right now. Please fill in the form yourself."],
-    [400, { success: false, message: 'Unsupported file type' }, 'Please upload a PDF, Word (.docx) or image file'],
+    [400, { success: false, message: 'Unsupported file type' }, 'Please upload a PDF, Word (.docx) or image (JPG, PNG, WEBP) file.'],
+    [404, { success: false, message: 'Code not found' }, 'Please enter your activation code again'],
+    [413, { success: false, reason: 'image_too_large', message: 'Image too large (max 3.5 MB)' }, 'Image too large — max 3.5 MB; please use a smaller photo or a PDF'],
+    [413, { success: false, message: 'Image too large (max 4.5 MB)' }, 'Image too large — max 3.5 MB; please use a smaller photo or a PDF'],
+    [503, { success: false, reason: 'ai_unavailable', ai }, 'Brochure reading is temporarily unavailable. Please try again later — this did not use one of your uploads.'],
 ])('%s shows its message', async (status, body, text) => {
     mockServer(status, body);
     const onFields = await render();
@@ -120,7 +124,7 @@ test('rejects .doc without calling fetch', async () => {
     await pick('old.doc');
     expect(brochureCalls()).toHaveLength(0);
     expect(onFields).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Please save it as PDF or .docx');
+    expect(container.textContent).toContain('Please upload a PDF, Word (.docx) or image (JPG, PNG, WEBP) file.');
 });
 
 test('rejects a file over 10 MB without calling fetch', async () => {
@@ -156,19 +160,65 @@ test("shows 'Reading your brochure…' while waiting", async () => {
     expect(container.textContent).not.toContain('Reading your brochure…');
 });
 
-test.each(['photo.jpg', 'photo.JPEG', 'scan.png', 'scan.webp'])('rejects an image over 4.5 MB without calling fetch (%s)', async (name) => {
+test.each(['photo.jpg', 'photo.JPEG', 'scan.png', 'scan.webp'])('rejects an image over 3.5 MB without calling fetch (%s)', async (name) => {
     mockServer(200, {});
     const onFields = await render();
-    await pick(name, 4.5 * 1024 * 1024 + 1);
+    await pick(name, 3.5 * 1024 * 1024 + 1);
     expect(brochureCalls()).toHaveLength(0);
     expect(onFields).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Image too large (max 4.5 MB). Please send a smaller photo or a PDF.');
+    expect(container.textContent).toContain('Image too large — max 3.5 MB; please use a smaller photo or a PDF');
 });
 
-test('a PDF over 4.5 MB (under 10 MB) is still sent', async () => {
+test('a PDF over 3.5 MB (under 10 MB) is still sent', async () => {
     mockServer(200, { success: true, data: { fields: SIX, ai } });
     const onFields = await render();
-    await pick('brochure.pdf', 4.5 * 1024 * 1024 + 1);
+    await pick('brochure.pdf', 3.5 * 1024 * 1024 + 1);
     expect(brochureCalls()).toHaveLength(1);
     expect(onFields).toHaveBeenCalledWith(SIX);
+});
+
+test('announces the new allowance for the page footer', async () => {
+    mockServer(200, { success: true, data: { fields: SIX, ai: { ...ai, used: 4, remaining: 46 } } });
+    const seen = [];
+    const on = (e) => seen.push(e.detail);
+    window.addEventListener('tge-ai-allowance-changed', on);
+    await render();
+    await pick('brochure.pdf');
+    window.removeEventListener('tge-ai-allowance-changed', on);
+    expect(seen).toEqual([{ ...ai, used: 4, remaining: 46 }]);
+});
+
+test('feeUsed false from onFields hides the SST warning; a notice is shown', async () => {
+    mockServer(200, { success: true, data: { fields: { ...SIX, feeMayIncludeSst: true }, ai } });
+    await render(jest.fn(() => ({ feeUsed: false, notice: 'Type of Training was not changed.' })));
+    await pick('brochure.pdf');
+    expect(container.textContent).not.toContain('Fee may include SST');
+    expect(container.textContent).toContain('Type of Training was not changed.');
+});
+
+test('hideSst hides the SST warning', async () => {
+    mockServer(200, { success: true, data: { fields: { ...SIX, feeMayIncludeSst: true }, ai } });
+    await act(async () => { root.render(<BrochureUpload onFields={jest.fn()} hideSst />); });
+    await pick('brochure.pdf');
+    expect(container.textContent).not.toContain('Fee may include SST');
+});
+
+test('the reply goes to the latest onFields and onStart is called when reading starts', async () => {
+    let resolve;
+    global.fetch = jest.fn((url) => {
+        if (String(url).endsWith('/api/employer/access')) {
+            return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, data: { ai } }) });
+        }
+        return new Promise(r => { resolve = r; });
+    });
+    const first = jest.fn();
+    const second = jest.fn();
+    const onStart = jest.fn();
+    await act(async () => { root.render(<BrochureUpload onFields={first} onStart={onStart} />); });
+    await pick('brochure.pdf');
+    expect(onStart).toHaveBeenCalledTimes(1);
+    await act(async () => { root.render(<BrochureUpload onFields={second} onStart={onStart} />); });
+    await act(async () => { resolve({ ok: true, status: 200, json: () => Promise.resolve({ success: true, data: { fields: SIX, ai } }) }); });
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith(SIX);
 });

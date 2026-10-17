@@ -19,6 +19,14 @@ export async function fetchAccess(code) {
     }
 }
 
+// Fired on window whenever a reply carries a fresh AI allowance, so every
+// "uploads left" line (the upload box, the page footer) shows the same number.
+export const AI_ALLOWANCE_EVENT = 'tge-ai-allowance-changed';
+export function announceAiAllowance(ai) {
+    if (!ai) return;
+    try { window.dispatchEvent(new CustomEvent(AI_ALLOWANCE_EVENT, { detail: ai })); } catch {}
+}
+
 export function uploadsLeftText(ai) {
     return `${ai.remaining} of ${ai.limit} uploads left this month`;
 }
@@ -88,6 +96,18 @@ export function aiBlockedMessage(reason, platform) {
                 title: 'Upgrade for AI uploads',
                 body: 'AI brochure uploads come with the yearly Business & People Management Newsletter: 50 uploads a month.',
                 links: [newsletterLink, adminLink],
+            };
+        case 'rate_limited':
+            return {
+                title: 'Too many tries',
+                body: 'Too many uploads from this connection in the last hour — please try again later. This did not use one of your uploads.',
+                links: [],
+            };
+        case 'pending_verification':
+            return {
+                title: 'Purchase being verified',
+                body: 'Your purchase is being verified. Open the app once with internet, then try again.',
+                links: [],
             };
         case 'spend_paused':
             return {

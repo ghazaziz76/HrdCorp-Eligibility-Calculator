@@ -1,6 +1,6 @@
 // OJT — On-the-Job Training.
 // Source: ACM Guide Jan 2026, section J.
-const num = (v) => parseFloat(v) || 0;
+const num = (v) => Math.max(0, parseFloat(v) || 0);
 const doc = (text) => ({ text });
 
 const RATE_PER_TRAINEE_HOUR = 50;
@@ -26,13 +26,25 @@ export function calculateOjt({
   const examFee = num(examinationFee);
   const matCost = num(learningMaterials);
 
-  const trainerAllowance = RATE_PER_TRAINEE_HOUR * hours * trainees;
+  // ACM Guide (OJT): "The maximum training hours are 300 hours" — only 300 hours are claimable.
+  const claimHours = Math.min(hours, MAX_HOURS);
+  // ACM Guide (OJT): "For training involving five (5) trainees or more, an application for financial
+  // assistance should be made under the SBL Scheme for internal trainer allowance." → blocked under OJT.
+  const sblRequired = trainees > MAX_RATIO;
+  const trainerAllowance = sblRequired ? 0 : RATE_PER_TRAINEE_HOUR * claimHours * trainees;
 
   const items = [];
-  if (trainerAllowance > 0) {
+  if (sblRequired && hours > 0) {
     items.push({
       label: 'OJT Trainer Allowance',
-      note: `RM ${RATE_PER_TRAINEE_HOUR}/trainee/hour × ${trainees} trainee(s) × ${hours} hour(s)`,
+      note: `Not claimable under OJT for ${trainees} trainees (5 or more) — apply under the SBL scheme for the internal trainer allowance`,
+      amount: 0,
+    });
+  } else if (trainerAllowance > 0) {
+    items.push({
+      label: 'OJT Trainer Allowance',
+      note: `RM ${RATE_PER_TRAINEE_HOUR}/trainee/hour × ${trainees} trainee(s) × ${claimHours} hour(s)` +
+            (claimHours < hours ? ` (capped at ${MAX_HOURS} of ${hours} hours)` : ''),
       amount: trainerAllowance,
     });
   }
@@ -55,9 +67,9 @@ export function calculateOjt({
   }
 
   const warnings = [];
-  if (totalClaimable === 0) warnings.push('Enter the OJT details (trainees + hours, or examination/learning materials) to calculate.');
-  if (trainees > MAX_RATIO) warnings.push(`OJT allows a maximum trainer-to-trainee ratio of 1:${MAX_RATIO} per session. With ${trainees} trainees, apply under the SBL scheme instead for the internal trainer allowance.`);
-  if (hours > MAX_HOURS) warnings.push(`OJT total training hours cannot exceed ${MAX_HOURS}. You entered ${hours}.`);
+  if (sblRequired) warnings.push(`⚠ Not claimable under OJT: OJT allows a maximum trainer-to-trainee ratio of 1:${MAX_RATIO} per session. With ${trainees} trainees, apply under the SBL scheme instead for the internal trainer allowance.`);
+  if (totalClaimable === 0 && !sblRequired) warnings.push('Enter the OJT details (trainees + hours, or examination/learning materials) to calculate.');
+  if (hours > MAX_HOURS) warnings.push(`OJT total training hours cannot exceed ${MAX_HOURS}. You entered ${hours} — only ${MAX_HOURS} hours are counted.`);
   if (hours > 0 && hours < MIN_SESSION_HOURS) warnings.push(`Each OJT training session must be at least ${MIN_SESSION_HOURS} hours (sub-sessions may be split, minimum 1 continuous hour each).`);
 
   if (validStart && validEnd && end < start) {
@@ -104,6 +116,7 @@ export function calculateOjt({
   return {
     items,
     totalClaimable,
+    sblRequired,
     durationDays,
     applyDeadline: applyDeadline ? fmtDate(applyDeadline) : null,
     pastDeadline,

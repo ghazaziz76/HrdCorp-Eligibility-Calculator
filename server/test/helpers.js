@@ -8,6 +8,8 @@ async function startTestServer(appOptions) {
     process.env.TGE_DATA_DIR = dataDir;
     process.env.TGE_NEWSLETTER_SECRET = 'test-secret-32-bytes-minimum-xxxxxxxx';
     process.env.ADMIN_PASSWORD = 'test-admin';
+    // Tests send many requests from one IP; rate-limit tests lower this themselves.
+    if (!process.env.RATE_LIMIT_PER_HOUR) process.env.RATE_LIMIT_PER_HOUR = '100000';
 
     const { createApp } = require('../app');
     const server = await new Promise((resolve) => {

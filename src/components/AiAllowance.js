@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchAccess, uploadsLeftText, clearStoredActivation } from '../utils/tgeAccess';
+import { fetchAccess, uploadsLeftText, clearStoredActivation, AI_ALLOWANCE_EVENT } from '../utils/tgeAccess';
 
 // Clears the stored code/token and reopens the activation gate. The new code
 // replaces the old one ("highest limit, not the sum").
@@ -30,6 +30,13 @@ const AiAllowance = ({ code, onReopenGate }) => {
         }
         return () => { alive = false; };
     }, [code]);
+
+    // Refresh after each brochure upload (BrochureUpload announces the new allowance).
+    useEffect(() => {
+        const onChange = (e) => { if (e && e.detail) setAi(e.detail); };
+        window.addEventListener(AI_ALLOWANCE_EVENT, onChange);
+        return () => window.removeEventListener(AI_ALLOWANCE_EVENT, onChange);
+    }, []);
 
     return (
         <div style={{ fontSize: '13px', color: '#555' }}>

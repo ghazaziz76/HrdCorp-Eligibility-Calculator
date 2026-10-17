@@ -9,7 +9,8 @@ const SETTINGS_FILE = 'tge-settings.json';
 
 const DEFAULT_SETTINGS = {
     monthly_spend_limit_usd: 20,
-    cost: { input_per_mtok: 3, output_per_mtok: 15, fallback_per_call_usd: 0.05 },
+    // claude-haiku-5-5 prices (USD per million tokens); the fallback is used when usage is unknown.
+    cost: { input_per_mtok: 0.10, output_per_mtok: 0.50, fallback_per_call_usd: 0.002 },
     over50_emailed_at: null,
 };
 

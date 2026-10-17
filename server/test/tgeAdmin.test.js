@@ -220,13 +220,13 @@ test('ai-settings limit change logged and unpauses', async () => {
     const s = await r.json();
     assert.equal(s.monthly_spend_limit_usd, 40);
     assert.equal(s.cost.input_per_mtok, 4);
-    assert.equal(s.cost.output_per_mtok, 15);
+    assert.equal(s.cost.output_per_mtok, 0.5);
     a = await (await pub('/api/employer/access', { code: d.code })).json();
     assert.equal(a.data.ai.reason, 'ok');
     const log = await (await get('/api/admin/tge-log')).json();
     assert.equal(log[0].action, 'ai-settings');
     assert.deepEqual(log[0].changes.monthly_spend_limit_usd, [20, 40]);
-    assert.deepEqual(log[0].changes['cost.input_per_mtok'], [3, 4]);
+    assert.deepEqual(log[0].changes['cost.input_per_mtok'], [0.1, 4]);
 });
 
 test('validation: bad input is 400, unknown code is 404', async () => {
