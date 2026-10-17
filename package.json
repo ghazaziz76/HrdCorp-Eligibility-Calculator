@@ -21,6 +21,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "server": "node server/index.js",
+    "test:server": "node --test \"server/test/*.test.js\"",
     "dev": "concurrently \"npm start\" \"npm run server\""
   },
   "browserslist": {

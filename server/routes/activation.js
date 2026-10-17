@@ -1,22 +1,10 @@
 const express = require('express');
 const router  = express.Router();
-const fs      = require('fs');
-const path    = require('path');
 const crypto  = require('crypto');
+const store   = require('../lib/store');
 
-const DATA_FILE = path.join(__dirname, '../data/activation-codes.json');
-
-const readCodes = () => {
-    try {
-        return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    } catch {
-        return [];
-    }
-};
-
-const writeCodes = (codes) => {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(codes, null, 2));
-};
+const readCodes  = () => store.readJSON('activation-codes.json', []);
+const writeCodes = (codes) => store.writeJSON('activation-codes.json', codes);
 
 // ── POST /api/employer/activation-codes ──────────────────
 // Mobile app registers a new activation code after purchase
@@ -133,14 +121,14 @@ router.get('/employer/check-session', (req, res) => {
 // Web app requests a new QR session token for display
 router.post('/employer/generate-qr-session', (req, res) => {
     const sessionToken = crypto.randomBytes(32).toString('hex');
-    // Use X-Forwarded headers from reverse proxy, fallback to req.get('host')
-    const forwardedHost = req.get('x-forwarded-host') || req.get('host');
-    const forwardedProto = req.get('x-forwarded-proto') || req.protocol;
+    // The QR's callback URL must use the public domain (valid TLS cert), not the
+    // raw server IP that the reverse proxy reports in x-forwarded-host.
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'https://www.milleniumrx.biz';
     res.json({
         success: true,
         data: {
             session_token: sessionToken,
-            activation_url: `${forwardedProto}://${forwardedHost}/api/employer/activate-qr`,
+            activation_url: `${baseUrl}/api/employer/activate-qr`,
         },
     });
 });

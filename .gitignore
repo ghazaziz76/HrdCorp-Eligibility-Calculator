@@ -2,3 +2,14 @@ node_modules/
 build/
 .env
 .DS_Store
+
+# Google Cloud service account credentials — NEVER commit
+*.json.key
+united-impact-*.json
+google-services-key*.json
+service-account*.json
+
+# TGE runtime data (never committed; activation-codes.json stays tracked)
+server/data/tge-*.json
+server/data/brochure-stats.json
+server/data/*.tmp-*
