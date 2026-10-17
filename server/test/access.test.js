@@ -65,3 +65,14 @@ test('legacy play code (no source field) → activated, ai reason play_unverifie
     assert.strictEqual(j.data.ai.reason, 'play_unverified');
     assert.strictEqual((await post('/api/employer/validate-code', { code: 'HRD-PLAY-PLAY-PLAY' })).status, 200);
 });
+
+test('activate-qr on a refunded gift code → 403 and entry not activated', async () => {
+    const d = await sync({ email: 'qr@y.com', paying: false, locked_reason: 'refund', refunded_at: '2026-10-01' });
+    const r = await post('/api/employer/activate-qr', { session_token: 'tok123', activation_code: d.code });
+    assert.strictEqual(r.status, 403);
+    assert.strictEqual((await r.json()).reason, 'refund');
+    const codes = JSON.parse(fs.readFileSync(path.join(srv.dataDir, 'activation-codes.json'), 'utf8'));
+    const e = codes.find(c => c.code === d.code);
+    assert.strictEqual(e.activated, false);
+    assert.strictEqual(e.session_token, null);
+});

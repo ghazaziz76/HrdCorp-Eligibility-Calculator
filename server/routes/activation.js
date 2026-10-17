@@ -66,6 +66,8 @@ router.post('/employer/activate-qr', (req, res) => {
         return res.status(404).json({ success: false, message: 'Activation code not found' });
     }
 
+    if (usage.accessFor(entry, new Date()).tge === 'locked') return lockedResponse(res, entry);
+
     // Mark as activated with this session
     entry.activated = true;
     entry.activated_at = new Date().toISOString();

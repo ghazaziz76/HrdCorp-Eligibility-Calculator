@@ -116,3 +116,35 @@ test('503 when secret env unset or short', async () => {
         process.env.TGE_NEWSLETTER_SECRET = saved;
     }
 });
+
+test('future-dated request cannot be replayed after acceptance+300s while still inside its own window', async () => {
+    const router = require('../routes/newsletter');
+    const real = Date.now();
+    const ts = Math.floor(real / 1000) + 250;
+    const b = base({ email: 'future@b.com' });
+    const raw = JSON.stringify(b);
+    const sig = crypto.createHmac('sha256', process.env.TGE_NEWSLETTER_SECRET).update(ts + '.' + raw).digest('hex');
+    try {
+        assert.strictEqual((await signedPost(srv.base, P, b, { timestamp: ts, signature: sig })).status, 200);
+        router._setClock(() => real + 320 * 1000); // past acceptance+300, within ts+300
+        assert.strictEqual((await signedPost(srv.base, P, b, { timestamp: ts, signature: sig })).status, 401);
+    } finally {
+        router._setClock(null);
+    }
+});
+
+test('oversized body returns JSON error, not HTML', async () => {
+    const r = await signedPost(srv.base, P, null, { rawBody: JSON.stringify({ pad: 'x'.repeat(1100 * 1024) }) });
+    assert.strictEqual(r.status, 413);
+    assert.match(r.headers.get('content-type'), /application\/json/);
+    const j = await r.json();
+    assert.strictEqual(j.success, false);
+    assert.ok(!JSON.stringify(j).includes('at '));
+});
+
+test('impossible anchor_date → 400', async () => {
+    for (const d of ['2026-13-45', '2026-02-30', '2026-10-17T00:00:00Z']) {
+        const r = await signedPost(srv.base, P, base({ email: 'bad@b.com', anchor_date: d }));
+        assert.strictEqual(r.status, 400, d);
+    }
+});

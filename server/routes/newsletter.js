@@ -10,7 +10,10 @@ const WINDOW_S = 300;
 const MIN_SECRET = 32;
 const seen = new Map(); // accepted signature -> expiry (ms)
 
-const fail = (res, status, message) => res.status(status).json({ success: false, message });
+let clock = () => Date.now();
+const _setClock = (fn) => { clock = fn || (() => Date.now()); };
+
+const fail =(res, status, message) => res.status(status).json({ success: false, message });
 
 function prune(nowMs) {
     for (const [sig, exp] of seen) if (exp <= nowMs) seen.delete(sig);
@@ -27,7 +30,7 @@ function requireNewsletterSignature(req, res, next) {
     if (!ts || !sig || !/^\d{1,12}$/.test(ts) || !/^[0-9a-f]{64}$/.test(sig)) {
         return fail(res, 401, 'Unauthorized');
     }
-    const nowMs = Date.now();
+    const nowMs = clock();
     if (Math.abs(nowMs / 1000 - Number(ts)) > WINDOW_S) return fail(res, 401, 'Unauthorized');
 
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
@@ -38,7 +41,8 @@ function requireNewsletterSignature(req, res, next) {
     }
     prune(nowMs);
     if (seen.has(sig)) return fail(res, 401, 'Unauthorized');
-    seen.set(sig, nowMs + WINDOW_S * 1000);
+    // Keep until the timestamp itself leaves the window, so future-dated requests cannot be replayed.
+    seen.set(sig, (Number(ts) + WINDOW_S) * 1000);
 
     try {
         req.body = raw.length ? JSON.parse(raw.toString('utf8')) : {};
@@ -52,13 +56,21 @@ function requireNewsletterSignature(req, res, next) {
 }
 
 // Raw bytes are needed for the signature, so no JSON parsing before auth.
-router.use(express.raw({ type: () => true, limit: '1mb' }));
+router.use(express.raw({ type: () => true, limit: '1mb', inflate: false }));
 router.use(requireNewsletterSignature);
 
 const readCodes  = () => store.readJSON('activation-codes.json', []);
 const writeCodes = (c) => store.writeJSON('activation-codes.json', c);
 
-const STATUSES = ['paid', 'free', 'vip', 'past_due', 'cancelled', 'blocked', 'deleted'];
+function validDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+    if (!m) return false;
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}
+
+const STATUSES =['paid', 'free', 'vip', 'past_due', 'cancelled', 'blocked', 'deleted'];
 const PLANS = ['yearly', 'monthly', 'vip', 'none'];
 const LOCKS = [null, 'blocked', 'refund', 'deleted', 'not_entitled'];
 
@@ -72,7 +84,7 @@ router.post('/entitlement', (req, res) => {
     if (!LOCKS.includes(locked)) return fail(res, 400, 'Invalid locked_reason');
     if (typeof b.paying !== 'boolean' || typeof b.permanent !== 'boolean') return fail(res, 400, 'Invalid flags');
     if (b.code != null && typeof b.code !== 'string') return fail(res, 400, 'Invalid code');
-    if (b.anchor_date != null && !/^\d{4}-\d{2}-\d{2}/.test(String(b.anchor_date))) return fail(res, 400, 'Invalid anchor_date');
+    if (b.anchor_date != null && !validDate(b.anchor_date)) return fail(res, 400, 'Invalid anchor_date');
 
     const now = new Date();
     const codes = readCodes();
@@ -128,5 +140,14 @@ router.post('/entitlements/lookup', (req, res) => {
     res.json({ success: true, data });
 });
 
+// JSON errors only (body-parser 413/415/400 etc.); never a stack trace.
+// eslint-disable-next-line no-unused-vars
+router.use((err, req, res, next) => {
+    const status = Number(err && (err.status || err.statusCode));
+    const code = status >= 400 && status < 500 ? status : 500;
+    fail(res, code, code === 413 ? 'Request body too large' : code === 500 ? 'Server error' : 'Bad request');
+});
+
 module.exports = router;
 module.exports.requireNewsletterSignature = requireNewsletterSignature;
+module.exports._setClock = _setClock;
