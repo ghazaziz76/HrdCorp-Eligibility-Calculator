@@ -145,7 +145,20 @@ async function checkSpendAlerts(now) {
     }
 }
 
+// After the limit changes: clear alert flags that no longer apply so the
+// 80% / 100% mails can fire again. Returns the flags it cleared.
+function rearmSpendAlerts(now) {
+    const sp = getSpend(now);
+    const row = spendRow(now);
+    const cleared = [];
+    if (row.warned80_at && sp.pct < 80) { cleared.push('warned80_at'); row.warned80_at = null; }
+    if (row.paused_email_at && sp.pct < 100) { cleared.push('paused_email_at'); row.paused_email_at = null; }
+    if (cleared.length) store.writeJSON(SPEND_FILE, row);
+    return cleared;
+}
+
 module.exports = {
+    rearmSpendAlerts,
     DEFAULT_SETTINGS, getSettings, saveSettings, getUsage, getSpend, estimateCostUsd,
     recordSuccess, recordFailure, resetCount, accessFor, checkSpendAlerts,
 };

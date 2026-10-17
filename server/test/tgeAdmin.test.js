@@ -261,6 +261,25 @@ test('verify-play returns result and row, and is logged', async () => {
     assert.equal(log[0].code, p.code);
 });
 
+test('raising the limit re-arms spend alerts: one new 80% mail after re-crossing', async () => {
+    await sync({});
+    usage.recordSuccess(readCodes()[0], 16, new Date());
+    await usage.checkSpendAlerts(new Date());
+    assert.equal(mails().length, 1);
+    await usage.checkSpendAlerts(new Date());
+    assert.equal(mails().length, 1);
+    await post('/api/admin/ai-settings', { monthly_spend_limit_usd: 40 });
+    const sp = JSON.parse(fs.readFileSync(path.join(srv.dataDir, 'tge-spend.json'), 'utf8'));
+    assert.equal(sp.warned80_at, null);
+    const log = await (await get('/api/admin/tge-log')).json();
+    assert.deepEqual(log[0].changes.warned80_at, ['set', null]);
+    usage.recordSuccess(readCodes()[0], 16, new Date());
+    await usage.checkSpendAlerts(new Date());
+    assert.equal(mails().length, 2);
+    await usage.checkSpendAlerts(new Date());
+    assert.equal(mails().length, 2);
+});
+
 test('admin log keeps only the newest 5000 entries', () => {
     const adminLog = require('../lib/adminLog');
     for (let i = 0; i < 5005; i++) adminLog.append('x', null, { i: [i, i + 1] });

@@ -181,6 +181,9 @@ router.post('/admin/ai-settings', auth, (req, res) => {
         changes.monthly_spend_limit_usd = [before.monthly_spend_limit_usd, after.monthly_spend_limit_usd];
     }
     for (const k of Object.keys(patch.cost || {})) changes[`cost.${k}`] = [before.cost[k], after.cost[k]];
+    if (changes.monthly_spend_limit_usd && before.monthly_spend_limit_usd !== after.monthly_spend_limit_usd) {
+        for (const flag of usage.rearmSpendAlerts(new Date())) changes[flag] = ['set', null];
+    }
     adminLog.append('ai-settings', null, changes);
     res.json(after);
 });
