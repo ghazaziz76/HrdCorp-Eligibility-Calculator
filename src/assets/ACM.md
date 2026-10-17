@@ -204,7 +204,7 @@ Source: ACM Table (November 2025) + ACM Guide (September 2025)
 **Notes:**
 - Schemes: HCC, SBL, SLB.
 - Air ticket is NOT claimable for ROT — trainer delivers online; trainees attend from their location.
-- Owner's rule (Oct 2026): HRD Corp says ROT is treated the same as face-to-face, but the daily allowance is for travelling to the training location, so ROT at own premises / own location gets the meal allowance instead of the daily allowance.
+- This follows HRD Corp's rule that ROT is treated the same as face-to-face: the allowance depends on where trainees physically are. That is why the venue is asked for both ROT In-House and ROT Public. Trainees who gather at an external venue / hotel get the daily allowance, exactly as for face-to-face. Trainees who join from their own premises / own location don't travel, so they get the meal allowance.
 - SLB cost mode: group rate ÷ total pax × each employer's pax. Never public rate.
 - SLB consumables: organising employer only.
 - **Actual Course Fee (External trainer):** Enter the actual fee from the brochure or offer letter. If actual fee ≤ ACM ceiling → system claims actual fee. If actual fee > ACM ceiling → system claims up to ACM ceiling only; excess is self-funded. Leave blank → system uses ACM ceiling rate.
