@@ -40,7 +40,10 @@ Reply with JSON only (no other text), with exactly these keys:
 Use null for anything the brochure does not state. Never guess.
 
 - trainingProgrammeName: the course title exactly as printed, e.g. "Associate HR Professional Certificate (AHRP)".
-- trainingType: one of inhouse, rot_inhouse, coaching_mentoring, rot_public, public, seminar_conference, elearning, mobile_elearning, overseas, overseas_seminar, development. A public course held on Zoom or online is rot_public.
+- trainingType: one of inhouse, rot_inhouse, coaching_mentoring, rot_public, public, seminar_conference, elearning, mobile_elearning, overseas, overseas_seminar, development.
+  - rot_public / rot_inhouse ONLY when the brochure's text says the training is delivered online: e.g. "online", "virtual", "live online", "via Zoom / Teams / Webex", "remote", "ROT". A named physical venue, a laptop or screen in the picture, or a technology / AI / digital topic is NOT a sign of online training.
+  - public: a course run by a training provider that anyone can register for, held at a physical venue (hotel, resort, training centre). Not online.
+  - inhouse: the brochure says it is run in-house / for one company's own staff.
 - venue: employer_premises or external_hotel, only when the brochure states the venue and trainingType is inhouse, rot_inhouse, rot_public, coaching_mentoring or development. For online training (rot_inhouse, rot_public), external_hotel only when the brochure names a physical venue where trainees gather; joining online from anywhere = null. Otherwise null.
 - days: the number of training days. A printed "N days" wins over counting dates; otherwise count the listed dates (e.g. "19-23, 26-27 Oct" = 7).
 - duration: full_day when a training day has 7 or more training hours (e.g. 9am-5pm), half_day when under 7. Training hours = session span minus a stated lunch break; if no break is stated, use the span. If no hours are stated, null.
