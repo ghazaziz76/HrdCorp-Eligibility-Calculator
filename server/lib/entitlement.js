@@ -104,14 +104,13 @@ function computeAccess(entry, usage, ctx) {
   else if (ctx.failedToday >= FAILED_DAILY_CAP) reason = 'failed_cap';
   else reason = 'ok';
 
-  const effective = tge === 'locked' ? 0 : limit;
   return {
     tge,
     ai: {
       enabled: reason === 'ok',
-      limit: effective,
+      limit,
       used,
-      remaining: Math.max(0, effective - used),
+      remaining: Math.max(0, limit - used),
       resets_on: nextReset(anchorFor(entry), ctx.now),
       reason,
     },

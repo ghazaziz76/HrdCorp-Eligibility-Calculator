@@ -65,7 +65,7 @@ test('refund -> locked', () => {
 });
 test('blocked -> locked even if permanent:true', () => {
   const a = run(nl({ status: 'blocked', locked_reason: 'blocked', permanent: true, paying: true }));
-  assert.deepEqual(sum(a), { tge: 'locked', enabled: false, limit: 0 });
+  assert.deepEqual(sum(a), { tge: 'locked', enabled: false, limit: 50 });
 });
 test('not_entitled (VIP removed / reactivated free) -> locked', () => {
   const a = run(nl({ status: 'free', plan_source: 'none', paying: false, permanent: false, locked_reason: 'not_entitled' }));
@@ -75,9 +75,9 @@ test('free, not paying, not permanent, no reason -> locked', () => {
   assert.equal(run(nl({ status: 'free', paying: false })).tge, 'locked');
 });
 
-test('admin.revoked locks a paid yearly', () => {
+test('admin.revoked paid yearly -> tge locked, reason locked, enabled false, limit 50', () => {
   const a = run(nl({}, { revoked: true }));
-  assert.deepEqual(sum(a), { tge: 'locked', enabled: false, limit: 0 });
+  assert.deepEqual(sum(a), { tge: 'locked', enabled: false, limit: 50 });
   assert.equal(a.ai.reason, 'locked');
 });
 test('admin.revoked locks a Play entry', () => {
