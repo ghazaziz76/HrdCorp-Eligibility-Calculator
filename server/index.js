@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Load the project-root .env whatever directory pm2 starts us from.
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 const { createApp }    = require('./app');
 const { startMonitor } = require('./monitor');
