@@ -119,6 +119,33 @@ test('null fields leave boxes untouched', async () => {
     expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(1);
 });
 
+test('a second brochure resets boxes the first brochure filled but the second does not', async () => {
+    mockServer({ trainingProgrammeName: 'AHRP', trainingType: 'rot_public', venue: null, days: 7, duration: 'half_day', actualCourseFee: 129 });
+    await renderWithScheme();
+    await upload();
+    expect(control('Actual Course Fee').value).toBe('129');
+
+    mockServer({ trainingProgrammeName: 'How Good Are You at Using AI?', trainingType: 'public', venue: null, days: 2, duration: null, actualCourseFee: null });
+    await upload();
+    expect(container.querySelector('#training-prog-name').value).toBe('How Good Are You at Using AI?');
+    expect(control('Type of Training').value).toBe('public');
+    expect(control('Number of Training Days').value).toBe('2');
+    expect(control('Daily Duration').value).toBe('full_day');
+    expect(control('Actual Course Fee').value).toBe('');
+    expect(container.querySelectorAll('[data-testid="from-brochure"]')).toHaveLength(3);
+});
+
+test('a second brochure keeps a box the user typed in by hand', async () => {
+    mockServer({ trainingProgrammeName: 'AHRP', trainingType: 'public', venue: null, days: 7, duration: null, actualCourseFee: 129 });
+    await renderWithScheme();
+    await upload();
+    await act(async () => { setValue(control('Actual Course Fee'), '300'); });
+
+    mockServer({ trainingProgrammeName: 'Other', trainingType: 'public', venue: null, days: 2, duration: null, actualCourseFee: null });
+    await upload();
+    expect(control('Actual Course Fee').value).toBe('300');
+});
+
 test('privacy note says plans and history stay in this browser and mentions brochure uploads', async () => {
     await act(async () => { root.render(<HRDCorpCostCalculator />); });
     expect(container.textContent).not.toContain('stored or transmitted');

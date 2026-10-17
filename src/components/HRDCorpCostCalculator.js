@@ -259,10 +259,18 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const SLB_TYPES   = ['inhouse', 'rot_inhouse'];
     // These types hide the Days and Duration boxes.
     const NO_DAYS_TYPES = ['elearning', 'mobile_elearning', 'development'];
+    // A box the previous brochure filled goes back to its default when the new brochure
+    // doesn't have that detail (a box typed by hand lost its tag and is kept).
+    const BROCHURE_DEFAULTS = { trainingProgrammeName: '', trainingType: 'inhouse', venue: 'employer_premises', days: '1', duration: 'full_day', actualCourseFee: '' };
     const applyBrochure = (fields) => {
         const f = fields || {};
         const filled = [];
         let type = trainingType;
+        if (fromBrochure.has('trainingType') && f.trainingType == null) {
+            SETTERS.trainingType(BROCHURE_DEFAULTS.trainingType);
+            resetForType(BROCHURE_DEFAULTS.trainingType);
+            type = BROCHURE_DEFAULTS.trainingType;
+        }
         if (f.trainingType != null && (scheme !== 'slb' || SLB_TYPES.includes(f.trainingType))) {
             SETTERS.trainingType(f.trainingType);
             resetForType(f.trainingType);
@@ -278,6 +286,11 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             setTrainingProgrammeName(String(f.trainingProgrammeName));
             filled.push('trainingProgrammeName');
         }
+        fromBrochure.forEach(k => {
+            if (k === 'trainingType' || filled.includes(k)) return;
+            if (k === 'trainingProgrammeName') setTrainingProgrammeName('');
+            else SETTERS[k](BROCHURE_DEFAULTS[k]);
+        });
         setFromBrochure(new Set(filled));
         setResult(null);
         setDirty(true);
