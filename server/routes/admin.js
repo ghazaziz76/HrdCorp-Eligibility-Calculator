@@ -3,9 +3,9 @@ const router   = express.Router();
 const fs       = require('fs');
 const path     = require('path');
 const multer   = require('multer');
+const store   = require('../lib/store');
+const { auth, adminPassword } = require('../lib/adminAuth');
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
-const DATA_DIR       = path.join(__dirname, '../data');
 const UPLOADS_DIR    = path.join(__dirname, '../uploads');
 
 // ── Multer — PDF uploads only ─────────────────────────────
@@ -25,15 +25,8 @@ const upload = multer({
     limits: { fileSize: 20 * 1024 * 1024 }  // 20 MB max
 });
 
-// ── Auth middleware ───────────────────────────────────────
-const auth = (req, res, next) => {
-    const pw = req.headers['x-admin-password'] || (req.body && req.body.password);
-    if (pw !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Invalid password' });
-    next();
-};
-
-const readJSON  = (file) => JSON.parse(fs.readFileSync(path.join(DATA_DIR, file), 'utf8'));
-const writeJSON = (file, data) => fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2));
+const readJSON  = (file, fallback = {}) => store.readJSON(file, fallback);
+const writeJSON = (file, data) => store.writeJSON(file, data);
 
 // ── Public endpoints ──────────────────────────────────────
 router.get('/rates',    (req, res) => res.json(readJSON('acm-rates.json')));
@@ -58,7 +51,7 @@ router.get('/pdf/:type', (req, res) => {
 // ── Admin: login check ────────────────────────────────────
 router.post('/admin/login', (req, res) => {
     const { password } = req.body;
-    if (password !== ADMIN_PASSWORD) return res.status(401).json({ error: 'Invalid password' });
+    if (password !== adminPassword()) return res.status(401).json({ error: 'Invalid password' });
     res.json({ success: true });
 });
 
@@ -103,8 +96,7 @@ router.post('/admin/upload/:type', auth, upload.single('file'), (req, res) => {
 // ── Admin: get monitor status ──────────────────────────────
 router.get('/admin/monitor', auth, (req, res) => {
     try {
-        const data = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'monitor.json'), 'utf8'));
-        res.json(data);
+        res.json(readJSON('monitor.json', {}));
     } catch {
         res.json({});
     }
