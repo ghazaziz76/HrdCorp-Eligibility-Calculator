@@ -7,7 +7,7 @@ const th = { textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid #1b
 const td = { padding: '6px 8px', borderBottom: '1px solid #eee', verticalAlign: 'top' };
 const btn = (bg) => ({ background: bg, color: '#fff', border: 'none', padding: '4px 10px', borderRadius: '5px', fontSize: '11px', fontWeight: '600', cursor: 'pointer', marginRight: '4px' });
 
-const aiValue = (v) => (v === true ? 'on' : v === false ? 'off' : 'auto');
+const linkBtn = { background: 'none', border: 'none', color: '#1565c0', fontSize: '11px', cursor: 'pointer', padding: 0, textDecoration: 'underline' };
 const fmtDate = (s) => (s ? String(s).slice(0, 10) : '');
 // Malaysia wall-clock time (UTC+8, no DST), "YYYY-MM-DD HH:mm".
 const fmtTime = (s) => {
@@ -67,7 +67,7 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
 
     const base = (code) => `/api/admin/tge-users/${encodeURIComponent(code)}`;
 
-    const setAi = (u, v) => post(base(u.code), { ai_enabled: v === 'on' ? true : v === 'off' ? false : null });
+    const setAi = (u, v) => post(base(u.code), { ai_enabled: v });
     const commitLimit = (u, text) => {
         const t = text.trim();
         const next = t === '' ? null : Number(t);
@@ -80,7 +80,7 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
     };
     const toggleRevoke = (u) => {
         const revoke = !u.admin.revoked;
-        if (window.confirm(`${revoke ? 'Revoke' : 'Restore'} TGE access for ${u.code}?`)) post(base(u.code), { revoked: revoke });
+        if (window.confirm(`${revoke ? 'Remove' : 'Restore'} TGE access for ${u.email || u.code}?`)) post(base(u.code), { revoked: revoke });
     };
     const verify = async (u) => {
         const out = await post(`${base(u.code)}/verify-play`, {}, 'Verification run');
@@ -142,14 +142,32 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px' }}>
                         <thead><tr>
-                            {['Who', 'Code', 'Source', 'Newsletter status', 'TGE', 'Used / limit', 'Last used', 'Total', 'Cost this month', 'Controls'].map((h) => <th key={h} style={th}>{h}</th>)}
+                            {['Who', 'Access', 'Code', 'Source', 'Newsletter status', 'TGE', 'Used / limit', 'Last used', 'Total', 'Cost this month', 'Upload limit / month'].map((h) => <th key={h} style={th}>{h}</th>)}
                         </tr></thead>
                         <tbody>
                             {users.map((u) => {
                                 const play = u.source === 'play';
+                                const tgeOn = u.tge === 'activated';
+                                // Locked by the subscriber's own status (cancelled, refunded, ...), not by an admin.
+                                const lockedElsewhere = !tgeOn && !u.admin.revoked;
+                                const uploadOn = tgeOn && u.admin.ai_enabled !== false && u.ai.limit > 0;
                                 return (
                                     <tr key={u.code}>
                                         <td style={td}>{play ? 'Play Store' : <>{u.name}<br /><span style={{ color: '#888' }}>{u.email}</span></>}</td>
+                                        <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                                            <label style={{ display: 'block', cursor: lockedElsewhere ? 'not-allowed' : 'pointer' }}
+                                                title={lockedElsewhere ? `Locked by subscription status: ${u.newsletter_status || u.ai.reason}` : ''}>
+                                                <input type="checkbox" data-testid="tick-tge" checked={tgeOn} disabled={lockedElsewhere}
+                                                    onChange={() => toggleRevoke(u)} /> TGE
+                                            </label>
+                                            <label style={{ display: 'block', cursor: tgeOn ? 'pointer' : 'not-allowed' }}>
+                                                <input type="checkbox" data-testid="tick-upload" checked={uploadOn} disabled={!tgeOn}
+                                                    onChange={() => setAi(u, !uploadOn)} /> Upload
+                                            </label>
+                                            {u.admin.ai_enabled !== null && (
+                                                <button style={linkBtn} title="Go back to what the plan gives" onClick={() => setAi(u, null)}>{'\u21ba'} plan</button>
+                                            )}
+                                        </td>
                                         <td style={{ ...td, fontFamily: 'monospace' }}>{u.code}</td>
                                         <td style={td}>{u.source}</td>
                                         <td style={td}>{u.newsletter_status || '-'}</td>
@@ -161,17 +179,11 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
                                         <td style={td}>{u.total}</td>
                                         <td style={td}>{usd(u.cost_month_usd)}</td>
                                         <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                                            <select style={iStyle} value={aiValue(u.admin.ai_enabled)} onChange={(e) => setAi(u, e.target.value)}>
-                                                <option value="auto">Auto</option>
-                                                <option value="on">On</option>
-                                                <option value="off">Off</option>
-                                            </select>{' '}
-                                            <input key={`${u.code}:${u.admin.monthly_limit}`} style={{ ...iStyle, width: '60px' }} type="number" min="0" placeholder="auto"
+                                            <input key={`${u.code}:${u.admin.monthly_limit}`} style={{ ...iStyle, width: '60px' }} type="number" min="0" placeholder="plan" title="Blank = the plan's default (yearly 50, monthly 3, VIP 5, Play 10). Type a number to override."
                                                 defaultValue={u.admin.monthly_limit === null ? '' : u.admin.monthly_limit}
                                                 onBlur={(e) => commitLimit(u, e.target.value)}
                                                 onKeyDown={(e) => e.key === 'Enter' && e.target.blur()} />{' '}
                                             <button style={btn('#1565c0')} onClick={() => reset(u)}>Reset</button>
-                                            <button style={btn(u.admin.revoked ? '#2e7d32' : '#c62828')} onClick={() => toggleRevoke(u)}>{u.admin.revoked ? 'Restore' : 'Revoke'}</button>
                                             {play && <button style={btn('#6a1b9a')} onClick={() => verify(u)}>Verify</button>}
                                         </td>
                                     </tr>

@@ -72,13 +72,12 @@ test('shows over-50 warning text', async () => {
     expect(container.textContent).toContain(OVER50);
 });
 
-test('changing AI select to Off POSTs {ai_enabled:false}', async () => {
+const tick = (name) => container.querySelector(`[data-testid="tick-${name}"]`);
+
+test('unticking Upload POSTs {ai_enabled:false}', async () => {
     await render();
-    const sel = container.querySelector('select');
-    await act(async () => {
-        sel.value = 'off';
-        sel.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    expect(tick('upload').checked).toBe(true);
+    await act(async () => { tick('upload').click(); });
     const post = calls.find((c) => c.opts.method === 'POST');
     expect(post.url).toBe('/api/admin/tge-users/HRD-AAAA-BBBB-CCCC');
     expect(JSON.parse(post.opts.body)).toEqual({ ai_enabled: false });
@@ -86,11 +85,10 @@ test('changing AI select to Off POSTs {ai_enabled:false}', async () => {
     expect(post.opts.headers['Content-Type']).toBe('application/json');
 });
 
-test('Revoke asks confirm and POSTs {revoked:true}', async () => {
+test('unticking TGE asks confirm and POSTs {revoked:true}', async () => {
     await render();
     window.confirm = jest.fn(() => true);
-    const btn = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Revoke');
-    await act(async () => { btn.click(); });
+    await act(async () => { tick('tge').click(); });
     expect(window.confirm).toHaveBeenCalled();
     const post = calls.find((c) => c.opts.method === 'POST');
     expect(JSON.parse(post.opts.body)).toEqual({ revoked: true });
@@ -111,7 +109,7 @@ test('Verify button renders only on Play rows', async () => {
 
 test('clearing the per-row limit and blurring POSTs {monthly_limit:null}', async () => {
     await render(listBody({ users: [row({ admin: { ai_enabled: null, monthly_limit: 20, revoked: false } })] }));
-    const input = container.querySelector('tbody input');
+    const input = container.querySelector('tbody input[type=number]');
     expect(input.value).toBe('20');
     await act(async () => {
         setValue(input, '');
@@ -121,19 +119,42 @@ test('clearing the per-row limit and blurring POSTs {monthly_limit:null}', async
     expect(JSON.parse(posts()[0].opts.body)).toEqual({ monthly_limit: null });
 });
 
-test('AI select Auto POSTs {ai_enabled:null} and On POSTs {ai_enabled:true}', async () => {
-    await render(listBody({ users: [row({ admin: { ai_enabled: false, monthly_limit: null, revoked: false } })] }));
-    const sel = () => container.querySelector('select');
-    expect(sel().value).toBe('off');
-    await act(async () => { sel().value = 'auto'; sel().dispatchEvent(new Event('change', { bubbles: true })); });
-    await act(async () => { sel().value = 'on'; sel().dispatchEvent(new Event('change', { bubbles: true })); });
-    expect(posts().map((p) => JSON.parse(p.opts.body))).toEqual([{ ai_enabled: null }, { ai_enabled: true }]);
+test('a revoked user: TGE unticked, ticking restores; Upload disabled', async () => {
+    await render(listBody({ users: [row({ tge: 'locked', admin: { ai_enabled: null, monthly_limit: null, revoked: true } })] }));
+    expect(tick('tge').checked).toBe(false);
+    expect(tick('upload').disabled).toBe(true);
+    window.confirm = jest.fn(() => true);
+    await act(async () => { tick('tge').click(); });
+    expect(JSON.parse(posts()[0].opts.body)).toEqual({ revoked: false });
+});
+
+test('locked by subscription status: TGE tick disabled', async () => {
+    await render(listBody({ users: [row({ tge: 'locked', newsletter_status: 'cancelled' })] }));
+    expect(tick('tge').disabled).toBe(true);
+    expect(tick('tge').checked).toBe(false);
+});
+
+test('a $0 yearly user (limit 0): Upload unticked, ticking POSTs {ai_enabled:true}', async () => {
+    await render(listBody({ users: [row({ ai: { enabled: false, limit: 0, used: 0, remaining: 0, resets_on: '2026-11-17', reason: 'not_paying' } })] }));
+    expect(tick('tge').checked).toBe(true);
+    expect(tick('upload').checked).toBe(false);
+    await act(async () => { tick('upload').click(); });
+    expect(JSON.parse(posts()[0].opts.body)).toEqual({ ai_enabled: true });
+});
+
+test('"plan" link shows only with an override and POSTs {ai_enabled:null}', async () => {
+    await render(listBody({ users: [row(), row({ code: 'HRD-OVR-0000-0001', admin: { ai_enabled: false, monthly_limit: null, revoked: false } })] }));
+    const links = [...container.querySelectorAll('button')].filter((b) => b.textContent.includes('plan'));
+    expect(links.length).toBe(1);
+    expect(links[0].closest('tr').textContent).toContain('HRD-OVR-0000-0001');
+    await act(async () => { links[0].click(); });
+    expect(JSON.parse(posts()[0].opts.body)).toEqual({ ai_enabled: null });
 });
 
 test('a failing request reports the error via showMsg', async () => {
     await render();
     failPosts = true;
-    await act(async () => { container.querySelector('select').value = 'off'; container.querySelector('select').dispatchEvent(new Event('change', { bubbles: true })); });
+    await act(async () => { tick('upload').click(); });
     expect(showMsg).toHaveBeenCalledWith('x', true);
 });
 
