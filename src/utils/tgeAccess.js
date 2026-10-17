@@ -30,20 +30,65 @@ export function clearStoredActivation() {
     } catch {}
 }
 
-const adminLink = { label: ADMIN_EMAIL, href: `mailto:${ADMIN_EMAIL}` };
+// Sends one brochure to the server. Never throws.
+// -> { ok: true, fields, ai } | { ok: false, status, reason?, ai?, message }
+export async function uploadBrochure(file, code) {
+    const body = new FormData();
+    body.append('file', file);
+    let res;
+    try {
+        res = await fetch(`${API_BASE}/api/employer/ai-brochure`, {
+            method: 'POST',
+            headers: { 'x-tge-code': code },
+            body,
+        });
+    } catch {
+        return { ok: false, status: 0, message: 'Network error' };
+    }
+    let data = null;
+    try { data = await res.json(); } catch {}
+    if (res.ok && data && data.success && data.data) {
+        return { ok: true, fields: data.data.fields || {}, ai: data.data.ai || null };
+    }
+    return {
+        ok: false,
+        status: res.status,
+        reason: data && data.reason,
+        ai: data && data.ai,
+        message: (data && data.message) || '',
+    };
+}
 
+const adminLink = { label: ADMIN_EMAIL, href: `mailto:${ADMIN_EMAIL}` };
+const newsletterLink = { label: 'Subscribe to the Business & People Management Newsletter', href: NEWSLETTER_URL };
+
+const notAvailable = () => ({
+    title: 'AI uploads unavailable',
+    body: "AI uploads aren't available for this code.",
+    links: [adminLink],
+});
+
+// App wording must never mention the newsletter, subscribing, prices or URLs
+// (Play policy), so the upgrade wording below is web only.
 export function aiBlockedMessage(reason, platform) {
+    const isApp = platform === 'app';
     switch (reason) {
-        case 'limit_reached': {
-            const links = platform === 'app'
-                ? [adminLink]
-                : [{ label: 'Subscribe to the Business & People Management Newsletter', href: NEWSLETTER_URL }, adminLink];
+        case 'limit_reached':
             return {
                 title: 'No AI uploads left',
-                body: "You've used all your AI uploads for this month — come back next month.",
-                links,
+                body: isApp
+                    ? "You've used all your AI uploads for this month — come back next month."
+                    : "You've used all your AI uploads for this month — come back next month. Upgrade to the yearly newsletter for 50 uploads a month.",
+                links: isApp ? [adminLink] : [newsletterLink, adminLink],
             };
-        }
+        case 'not_paying':
+        case 'play_unverified':
+            if (isApp) return notAvailable();
+            return {
+                title: 'Upgrade for AI uploads',
+                body: 'AI brochure uploads come with the yearly Business & People Management Newsletter: 50 uploads a month.',
+                links: [newsletterLink, adminLink],
+            };
         case 'spend_paused':
             return {
                 title: 'AI uploads paused',
@@ -57,10 +102,6 @@ export function aiBlockedMessage(reason, platform) {
                 links: [],
             };
         default:
-            return {
-                title: 'AI uploads unavailable',
-                body: "AI uploads aren't available for this code.",
-                links: [adminLink],
-            };
+            return notAvailable();
     }
 }

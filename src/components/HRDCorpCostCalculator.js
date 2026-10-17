@@ -7,6 +7,7 @@ import { savePlan, updatePlan } from '../utils/savedPlans';
 import usePlanSeed from '../schemes/shared/usePlanSeed';
 import SuggestionsPanel from './SuggestionsPanel';
 import { suggestImprovements } from '../utils/suggestImprovements';
+import BrochureUpload from './BrochureUpload';
 
 // =============================================
 // HRDCORP ELIGIBILITY CALCULATOR
@@ -53,6 +54,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const [saveOpen,        setSaveOpen]        = React.useState(false);
     const [blockError,      setBlockError]      = React.useState(null);
     const [dirty,           setDirty]           = React.useState(false);
+    // Keys of the boxes last filled from a brochure (shows a 'from brochure' tag).
+    const [fromBrochure,    setFromBrochure]    = React.useState(() => new Set());
 
     usePlanSeed(initialPlan, {
       scheme: setScheme, trainingProgrammeName: setTrainingProgrammeName, trainingType: setTrainingType, trainerType: setTrainerType,
@@ -238,6 +241,53 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
         setDirty(true);
     };
 
+    // Side effects of changing the training type (shared by the select and the brochure upload).
+    const resetForType = (t) => {
+        // Clear subsidiaries for non-inhouse types
+        if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setSubsidiaries([]);
+        // Clear branches for e-learning, overseas, and development types
+        if (['elearning', 'mobile_elearning', 'overseas', 'overseas_seminar', 'development'].includes(t)) setBranches([]);
+        // Reset LTM when not in-house
+        if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setHasLTM(false);
+    };
+
+    // ── Brochure upload: AI fills up to six boxes ─────────
+    // Type first; venue only for types that have a Venue box; nulls are skipped.
+    const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'coaching_mentoring', 'development'];
+    const SLB_TYPES   = ['inhouse', 'rot_inhouse'];
+    const applyBrochure = (fields) => {
+        const f = fields || {};
+        const filled = [];
+        let type = trainingType;
+        if (f.trainingType != null && (scheme !== 'slb' || SLB_TYPES.includes(f.trainingType))) {
+            SETTERS.trainingType(f.trainingType);
+            resetForType(f.trainingType);
+            type = f.trainingType;
+            filled.push('trainingType');
+        }
+        if (f.venue != null && VENUE_TYPES.includes(type)) { SETTERS.venue(f.venue); filled.push('venue'); }
+        ['days', 'duration', 'actualCourseFee'].forEach(k => {
+            if (f[k] != null) { SETTERS[k](f[k]); filled.push(k); }
+        });
+        if (f.trainingProgrammeName != null) {
+            setTrainingProgrammeName(String(f.trainingProgrammeName));
+            filled.push('trainingProgrammeName');
+        }
+        setFromBrochure(new Set(filled));
+        setResult(null);
+        setDirty(true);
+    };
+    // A box edited by hand loses its tag.
+    const unmark = (k) => setFromBrochure(prev => {
+        if (!prev.has(k)) return prev;
+        const next = new Set(prev);
+        next.delete(k);
+        return next;
+    });
+    const brochureTag = (k) => fromBrochure.has(k) ? (
+        <span data-testid="from-brochure" style={{ marginLeft: '6px', fontSize: '10px', fontWeight: '400', color: '#757575', background: '#eeeeee', padding: '1px 6px', borderRadius: '8px' }}>from brochure</span>
+    ) : null;
+
     return (
         <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
             <h2 style={{ color: '#2e7d32', marginBottom: '6px' }}>💰 Training Grant Estimator</h2>
@@ -302,16 +352,19 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
             {/* ── REST OF FORM (only shown after scheme is chosen) ── */}
             {scheme && (<>
 
+            {/* ── BROCHURE UPLOAD (AI fills six boxes) ─────────── */}
+            <BrochureUpload onFields={applyBrochure} />
+
             {/* ── TRAINING PROGRAMME NAME ─────────────────────── */}
             <div style={{ background: '#fff', border: '1px solid #c8e6c9', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
                 <label htmlFor="training-prog-name" style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#1b5e20', marginBottom: '6px' }}>
-                    📋 Training Programme Name <span style={{ color: '#888', fontWeight: '400' }}>(optional)</span>
+                    📋 Training Programme Name <span style={{ color: '#888', fontWeight: '400' }}>(optional)</span>{brochureTag('trainingProgrammeName')}
                 </label>
                 <input
                     id="training-prog-name"
                     type="text"
                     value={trainingProgrammeName}
-                    onChange={e => setTrainingProgrammeName(e.target.value)}
+                    onChange={e => { setTrainingProgrammeName(e.target.value); unmark('trainingProgrammeName'); }}
                     placeholder="e.g. 2026 Q1 Leadership Development Programme"
                     style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }}
                 />
@@ -326,16 +379,12 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
                     {/* Training Type */}
                     <div style={rStyle}>
-                        <label style={lStyle}>Type of Training</label>
+                        <label style={lStyle}>Type of Training{brochureTag('trainingType')}</label>
                         <select style={iStyle} value={trainingType} onChange={e => {
                             const t = e.target.value;
                             setTrainingType(t);
-                            // Clear subsidiaries for non-inhouse types
-                            if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setSubsidiaries([]);
-                            // Clear branches for e-learning, overseas, and development types
-                            if (['elearning', 'mobile_elearning', 'overseas', 'overseas_seminar', 'development'].includes(t)) setBranches([]);
-                            // Reset LTM when not in-house
-                            if (!['inhouse', 'rot_inhouse', 'coaching_mentoring'].includes(t)) setHasLTM(false);
+                            resetForType(t);
+                            unmark('trainingType');
                             setResult(null);
                         }}>
                             <optgroup label="── In-House / Coaching ──────────────">
@@ -401,8 +450,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     {/* Venue — for in-house (including ROT inhouse) and development */}
                     {(isInhouse || isDevelopment) && (
                         <div style={rStyle}>
-                            <label style={lStyle}>Training Venue</label>
-                            <select style={iStyle} value={venue} onChange={e => { setVenue(e.target.value); setResult(null); }}>
+                            <label style={lStyle}>Training Venue{brochureTag('venue')}</label>
+                            <select style={iStyle} value={venue} onChange={e => { setVenue(e.target.value); unmark('venue'); setResult(null); }}>
                                 <option value="employer_premises">
                                     {isDevelopment ? 'College / University / Training Institution' : isROT ? 'Employer\'s Own Premises (ROT — Inhouse)' : 'Employer\'s Own Premises'}
                                 </option>
@@ -455,8 +504,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     {/* Duration — not for e-learning or development */}
                     {!isElearning && !isDevelopment && (
                         <div style={rStyle}>
-                            <label style={lStyle}>Daily Duration</label>
-                            <select style={iStyle} value={duration} onChange={e => setDuration(e.target.value)}>
+                            <label style={lStyle}>Daily Duration{brochureTag('duration')}</label>
+                            <select style={iStyle} value={duration} onChange={e => { setDuration(e.target.value); unmark('duration'); }}>
                                 <option value="full_day">Full Day (7 training hours)</option>
                                 <option value="half_day">Half Day (4 training hours)</option>
                             </select>
@@ -466,8 +515,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     {/* Number of Training Days — not for e-learning or development */}
                     {!isElearning && !isDevelopment && (
                         <div style={rStyle}>
-                            <label style={lStyle}>Number of Training Days</label>
-                            <input type="number" min="1" style={iStyle} value={days} onChange={e => setDays(e.target.value)} />
+                            <label style={lStyle}>Number of Training Days{brochureTag('days')}</label>
+                            <input type="number" min="1" style={iStyle} value={days} onChange={e => { setDays(e.target.value); unmark('days'); }} />
                         </div>
                     )}
 
@@ -611,6 +660,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             {isDevelopment
                                 ? 'Actual Programme Fee per Person (RM — total from brochure / offer letter)'
                                 : 'Actual Course Fee per Pax (RM — total for the full course)'}
+                            {brochureTag('actualCourseFee')}
                         </label>
                         <input
                             type="number"
@@ -618,7 +668,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                             step="1"
                             style={iStyle}
                             value={actualCourseFee}
-                            onChange={e => setActualCourseFee(e.target.value)}
+                            onChange={e => { setActualCourseFee(e.target.value); unmark('actualCourseFee'); }}
                             placeholder="e.g. 2500 (leave blank = use ACM rate)"
                         />
                     </div>

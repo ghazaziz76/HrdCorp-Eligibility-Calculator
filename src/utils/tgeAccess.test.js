@@ -1,4 +1,4 @@
-import { fetchAccess, uploadsLeftText, aiBlockedMessage, clearStoredActivation } from './tgeAccess';
+import { fetchAccess, uploadsLeftText, aiBlockedMessage, clearStoredActivation, uploadBrochure } from './tgeAccess';
 
 const ai = { enabled: true, limit: 50, used: 3, remaining: 47, resets_on: '2026-11-17', reason: 'ok' };
 
@@ -37,10 +37,64 @@ describe('aiBlockedMessage', () => {
         expect(aiBlockedMessage('failed_cap', 'web').body).toBe('Too many unreadable files today — try again tomorrow.');
     });
 
-    test.each(['not_paying', 'play_unverified', 'admin_off'])('%s text with mailto', (r) => {
-        const m = aiBlockedMessage(r, 'app');
+    test.each([
+        ['admin_off', 'web'], ['admin_off', 'app'],
+        ['locked', 'web'], ['locked', 'app'],
+        ['not_paying', 'app'], ['play_unverified', 'app'],
+    ])('%s on %s: not available text with mailto', (r, platform) => {
+        const m = aiBlockedMessage(r, platform);
         expect(m.body).toBe("AI uploads aren't available for this code.");
         expect(m.links).toEqual([{ label: 'admin@milleniumrx.biz', href: 'mailto:admin@milleniumrx.biz' }]);
+    });
+
+    test.each(['not_paying', 'play_unverified'])('web %s upgrade text', (r) => {
+        const m = aiBlockedMessage(r, 'web');
+        expect(m.title).toBe('Upgrade for AI uploads');
+        expect(m.body).toBe('AI brochure uploads come with the yearly Business & People Management Newsletter: 50 uploads a month.');
+        expect(m.links).toEqual([
+            { label: 'Subscribe to the Business & People Management Newsletter', href: 'https://www.milleniumrx.biz/newsletter.html' },
+            { label: 'admin@milleniumrx.biz', href: 'mailto:admin@milleniumrx.biz' },
+        ]);
+    });
+
+    test('web limit_reached adds upgrade line', () => {
+        const m = aiBlockedMessage('limit_reached', 'web');
+        expect(m.body).toContain("You've used all your AI uploads for this month");
+        expect(m.body).toContain('Upgrade to the yearly newsletter for 50 uploads a month.');
+    });
+});
+
+describe('uploadBrochure', () => {
+    afterEach(() => { delete global.fetch; });
+
+    const reply = (status, body) => {
+        global.fetch = jest.fn(() => Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }));
+    };
+
+    test('posts multipart with code header', async () => {
+        const fields = { trainingProgrammeName: 'Lean', trainingType: 'inhouse', venue: null, days: 2, duration: 'full_day', actualCourseFee: 900 };
+        reply(200, { success: true, data: { fields, ai } });
+        const file = new File(['x'], 'b.pdf', { type: 'application/pdf' });
+        const r = await uploadBrochure(file, 'HRD-AAAA-BBBB-CCCC');
+        const [url, opts] = global.fetch.mock.calls[0];
+        expect(url).toBe(`${window.location.origin}/api/employer/ai-brochure`);
+        expect(opts.method).toBe('POST');
+        expect(opts.headers['x-tge-code']).toBe('HRD-AAAA-BBBB-CCCC');
+        expect(opts.body).toBeInstanceOf(FormData);
+        expect(opts.body.get('file')).toBeInstanceOf(File);
+        expect(r).toEqual({ ok: true, fields, ai });
+    });
+
+    test('maps 403 to { ok:false, status:403, reason }', async () => {
+        reply(403, { success: false, reason: 'not_paying', ai });
+        const r = await uploadBrochure(new File(['x'], 'b.pdf'), 'C');
+        expect(r).toMatchObject({ ok: false, status: 403, reason: 'not_paying', ai });
+    });
+
+    test('network error -> status 0', async () => {
+        global.fetch = jest.fn(() => Promise.reject(new Error('down')));
+        const r = await uploadBrochure(new File(['x'], 'b.pdf'), 'C');
+        expect(r).toMatchObject({ ok: false, status: 0 });
     });
 });
 
