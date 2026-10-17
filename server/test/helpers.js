@@ -3,7 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
-async function startTestServer() {
+async function startTestServer(appOptions) {
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tge-test-'));
     process.env.TGE_DATA_DIR = dataDir;
     process.env.TGE_NEWSLETTER_SECRET = 'test-secret-32-bytes-minimum-xxxxxxxx';
@@ -11,7 +11,7 @@ async function startTestServer() {
 
     const { createApp } = require('../app');
     const server = await new Promise((resolve) => {
-        const s = createApp().listen(0, '127.0.0.1', () => resolve(s));
+        const s = createApp(appOptions).listen(0, '127.0.0.1', () => resolve(s));
     });
     const base = `http://127.0.0.1:${server.address().port}`;
 
