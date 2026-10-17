@@ -8,7 +8,6 @@ const brochureStats = require('../lib/brochureStats');
 const ALLOWED_MIME = new Set([
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/msword',
     'image/jpeg',
     'image/png',
     'image/webp',

@@ -4,15 +4,15 @@ const { myMonth } = require('./entitlement');
 
 const FILE = 'brochure-stats.json';
 
-// Field-name mapping is finalised in Task T11.
+// Maps the extractor's six fields to the four anonymous stats fields.
 function pickAnonymous(fields) {
     const f = fields || {};
     const v = (x) => (x === undefined ? null : x);
     return {
-        training_title: v(f.training_title),
-        duration: v(f.duration),
-        delivery: v(f.delivery),
-        course_fee: v(f.course_fee),
+        training_title: v(f.trainingProgrammeName),
+        duration: f.days && f.duration ? `${f.days} x ${f.duration}` : null,
+        delivery: v(f.trainingType),
+        course_fee: v(f.actualCourseFee),
     };
 }
 

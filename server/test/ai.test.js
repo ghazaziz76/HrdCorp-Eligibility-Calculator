@@ -112,6 +112,19 @@ test('rejects .exe mime with 400', async () => {
     assert.strictEqual((await r.json()).success, false);
 });
 
+test('doc file -> 400 Unsupported file type, nothing counted', async () => {
+    const d = await sync({ email: 'doc@y.com' });
+    let calls = 0;
+    holder.fn = async () => { calls++; return { fields: {}, usage: { input_tokens: 1, output_tokens: 1 } }; };
+    const r = await upload(d.code, { type: 'application/msword', name: 'b.doc' });
+    assert.strictEqual(r.status, 400);
+    const j = await r.json();
+    assert.strictEqual(j.success, false);
+    assert.strictEqual(j.message, 'Unsupported file type');
+    assert.strictEqual(calls, 0);
+    assert.strictEqual((await access(d.code)).ai.used, 0);
+});
+
 test('missing file 400', async () => {
     const d = await sync({ email: 'mf@y.com' });
     const fd = new FormData(); fd.append('other', 'x');
@@ -131,7 +144,7 @@ test('file over 10 MB → 413 JSON', async () => {
 test('stats file contains only the 4 fields + month', async () => {
     const d = await sync({ email: 'st@y.com' });
     holder.fn = async () => ({ fields: {
-        training_title: 'Lean Mgmt', duration: '2 days', delivery: 'in-house', course_fee: 1500,
+        trainingProgrammeName: 'Lean Mgmt', trainingType: 'inhouse', days: 2, duration: 'full_day', actualCourseFee: 1500,
         email: 'secret@x.com', trainer: 'Bob', code: 'HRD-X',
     }, usage: { input_tokens: 1, output_tokens: 1 } });
     assert.strictEqual((await upload(d.code)).status, 200);
@@ -139,13 +152,18 @@ test('stats file contains only the 4 fields + month', async () => {
     const last = stats[stats.length - 1];
     assert.deepStrictEqual(Object.keys(last).sort(), ['course_fee', 'delivery', 'duration', 'month', 'training_title']);
     assert.strictEqual(last.training_title, 'Lean Mgmt');
+    assert.strictEqual(last.delivery, 'inhouse');
+    assert.strictEqual(last.duration, '2 x full_day');
+    assert.strictEqual(last.course_fee, 1500);
     assert.match(last.month, /^\d{4}-\d{2}$/);
 });
 
 test('stub extractor → 503 not_configured and nothing counted toward used', async () => {
     const d = await sync({ email: 'stub@y.com' });
     setSpend(1);
-    holder.fn = require('../ai/extractor').extractBrochure;
+    // Explicit empty key so a key in the environment never reaches the real API from a test.
+    const { extractBrochure } = require('../ai/extractor');
+    holder.fn = (a) => extractBrochure(a, { apiKey: '' });
     const r = await upload(d.code);
     assert.strictEqual(r.status, 503);
     const j = await r.json();
