@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useACMData } from '../context/ACMDataContext';
+import TgeUsersTab from './TgeUsersTab';
 
 // ─────────────────────────────────────────────────────────
 // ADMIN PAGE — ACM Data Management
@@ -171,6 +172,7 @@ export default function AdminPage() {
         { id: 'rates',   label: '📊 Rates & Thresholds' },
         { id: 'version', label: '🕐 Version Stamp' },
         { id: 'pdfs',    label: '📁 Replace PDFs' },
+        { id: 'tge',     label: 'TGE Users' },
     ];
 
     return (
@@ -324,6 +326,8 @@ export default function AdminPage() {
                         </div>
                     </div>
                 )}
+
+                {tab === 'tge' && <TgeUsersTab adminHeader={adminHeader} showMsg={showMsg} />}
 
                 {/* ── TAB: REPLACE PDFs ──────────────────────────── */}
                 {tab === 'pdfs' && (
