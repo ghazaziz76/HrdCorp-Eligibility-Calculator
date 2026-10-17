@@ -170,7 +170,7 @@ const ActivationGate = ({ children }) => {
                     <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔐</div>
                     <h2 style={{ margin: '0 0 8px', color: '#1b5e20', fontSize: '22px' }}>Activate Training Grant Estimator</h2>
                     <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
-                        Purchase the app on Google Play, then enter your activation code here.
+                        Enter the activation code from your newsletter gift email or your Google Play purchase.
                     </p>
                 </div>
 
