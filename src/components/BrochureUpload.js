@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { fetchAccess, uploadsLeftText, uploadBrochure, announceAiAllowance } from '../utils/tgeAccess';
 import OutOfUploadsMessage from './OutOfUploadsMessage';
 
-export const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.png,.webp';
+// .jfif / .jpe are JPEG photos too (Facebook and WhatsApp downloads often use .jfif).
+export const ACCEPT = '.pdf,.docx,.jpg,.jpeg,.jfif,.jpe,.png,.webp';
 const ALLOWED_EXT = ACCEPT.split(',');
 const MAX_BYTES = 10 * 1024 * 1024;
 // The AI rejects images over 5 MB once encoded, so photos are capped lower than other files.
-const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
+const IMAGE_EXT = ['.jpg', '.jpeg', '.jfif', '.jpe', '.png', '.webp'];
 const MAX_IMAGE_BYTES = 3.5 * 1024 * 1024;
 const FIELD_KEYS = ['trainingProgrammeName', 'trainingType', 'venue', 'days', 'duration', 'actualCourseFee'];
 
@@ -14,7 +15,7 @@ const MSG = {
     tooBig: 'File too large (max 10 MB)',
     imageTooBig: 'Image too large — max 3.5 MB; please use a smaller photo or a PDF',
     noCode: 'Please enter your activation code again',
-    readFailed: "We couldn't read the details from this file. It didn't use up an upload.",
+    readFailed: "We couldn't find training details (course name, dates or fee) in this file — is it a training brochure? It didn't use up an upload.",
     unsupported: 'Please upload a PDF, Word (.docx) or image (JPG, PNG, WEBP) file.',
     unavailable: "Brochure reading isn't available right now. Please fill in the form yourself.",
     aiUnavailable: 'Brochure reading is temporarily unavailable. Please try again later — this did not use one of your uploads.',

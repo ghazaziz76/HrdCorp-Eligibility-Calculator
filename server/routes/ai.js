@@ -18,7 +18,7 @@ const ALLOWED_MIME = new Set([
 // Some browsers / phones send no type or a generic one. Then the file name decides whether the
 // bytes are looked at, and the bytes (the extractor's sniffer) decide the type.
 const GENERIC_MIME = new Set(['', 'application/octet-stream']);
-const ALLOWED_EXT = /\.(pdf|docx|jpe?g|png|webp)$/i;
+const ALLOWED_EXT = /\.(pdf|docx|jpe?g|jfif|jpe|png|webp)$/i;
 const IMAGE_MAX_MB = (IMAGE_MAX_BYTES / 1024 / 1024).toFixed(1);
 
 // In-flight extractions per code, and in total (module-level, single process). They are

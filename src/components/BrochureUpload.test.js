@@ -54,7 +54,7 @@ test('shows title and uploads-left line', async () => {
 test('file input accepts', async () => {
     mockServer(200, {});
     await render();
-    expect(container.querySelector('input[type="file"]').getAttribute('accept')).toBe('.pdf,.docx,.jpg,.jpeg,.png,.webp');
+    expect(container.querySelector('input[type="file"]').getAttribute('accept')).toBe('.pdf,.docx,.jpg,.jpeg,.jfif,.jpe,.png,.webp');
 });
 
 test('success calls onFields with the six fields', async () => {
@@ -65,6 +65,14 @@ test('success calls onFields with the six fields', async () => {
     expect(container.textContent).toContain('Please check these values. Fill in the rest (pax, trainers…) yourself.');
     expect(container.textContent).toContain('46 of 50 uploads left this month');
     expect(container.textContent).not.toContain('Fee may include SST');
+});
+
+test('a .jfif photo (JPEG from Facebook / WhatsApp) is sent, not refused', async () => {
+    mockServer(200, { success: true, data: { fields: SIX, ai: { ...ai, used: 4, remaining: 46 } } });
+    const onFields = await render();
+    await pick('brochure.jfif');
+    expect(global.fetch).toHaveBeenCalled();
+    expect(onFields).toHaveBeenCalledWith(SIX);
 });
 
 test("feeMayIncludeSst shows 'Fee may include SST, please check'", async () => {
@@ -102,7 +110,7 @@ test('429 limit_reached renders the out-of-uploads message', async () => {
 });
 
 test.each([
-    [422, { success: false, reason: 'read_failed', ai }, "We couldn't read the details from this file. It didn't use up an upload."],
+    [422, { success: false, reason: 'read_failed', ai }, "We couldn't find training details (course name, dates or fee) in this file — is it a training brochure? It didn't use up an upload."],
     [413, { success: false, message: 'too big' }, 'File too large (max 10 MB)'],
     [503, { success: false, reason: 'not_configured', ai }, "Brochure reading isn't available right now. Please fill in the form yourself."],
     [400, { success: false, message: 'Unsupported file type' }, 'Please upload a PDF, Word (.docx) or image (JPG, PNG, WEBP) file.'],
