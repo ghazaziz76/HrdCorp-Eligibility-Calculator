@@ -121,3 +121,32 @@ test('route stores rc_app_user_id once and never overwrites', async () => {
     await post({ code: code2, feature_key: 'tge', rc_app_user_id: 'late' });
     assert.equal(store.readJSON('activation-codes.json', []).find((c) => c.code === code2).play.rc_app_user_id, 'late');
 });
+
+test('unknown order id skips a used first item and verifies the unused second', async () => {
+    const other = entry({ code: 'HRD-ZZZZ-ZZZZ-ZZZZ', play: { rc_app_user_id: 'u2', verified_at: 'x', store_transaction_id: 'GPA.A' } });
+    const r = await pv.verifyPlayPurchase(entry({ google_play_order_id: 'unknown' }), [other], {
+        apiKey: 'k', fetchImpl: fakeFetch(200, rcBody([item('GPA.A'), item('GPA.B')])),
+    });
+    assert.deepEqual([r.verified, r.store_transaction_id], [true, 'GPA.B']);
+});
+
+test('applyVerification: transaction held by another verified entry -> transaction_already_used', async () => {
+    store.writeJSON('activation-codes.json', [
+        entry({ code: 'HRD-HOLD-HOLD-HOLD', play: { rc_app_user_id: 'u0', verified_at: 'x', store_transaction_id: 'GPA.1111' } }),
+        entry({ code: 'HRD-NEWW-NEWW-NEWW' }),
+    ]);
+    const r = await pv.applyVerification('HRD-NEWW-NEWW-NEWW', { apiKey: 'k', fetchImpl: fakeFetch(200, rcBody([item('GPA.1111')])) });
+    assert.deepEqual([r.verified, r.reason], [false, 'transaction_already_used']);
+    assert.equal(store.readJSON('activation-codes.json', [])[1].play.verified_at, undefined);
+});
+
+test('concurrent applyVerification sharing one transaction: exactly one verified', async () => {
+    store.writeJSON('activation-codes.json', [
+        entry({ code: 'HRD-CON1-CON1-CON1', google_play_order_id: 'unknown', play: { rc_app_user_id: 'u1' } }),
+        entry({ code: 'HRD-CON2-CON2-CON2', google_play_order_id: 'unknown', play: { rc_app_user_id: 'u2' } }),
+    ]);
+    const f = async () => { await new Promise((r) => setTimeout(r, 10)); return { ok: true, status: 200, json: async () => rcBody([item('GPA.SAME')]) }; };
+    const rs = await Promise.all(['HRD-CON1-CON1-CON1', 'HRD-CON2-CON2-CON2'].map((c) => pv.applyVerification(c, { apiKey: 'k', fetchImpl: f })));
+    assert.deepEqual(rs.map((r) => r.reason).sort(), ['ok', 'transaction_already_used']);
+    assert.equal(store.readJSON('activation-codes.json', []).filter((c) => c.play.verified_at).length, 1);
+});

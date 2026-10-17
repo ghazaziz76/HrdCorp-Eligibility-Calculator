@@ -3,6 +3,9 @@ const store = require('./store');
 const RC_BASE = 'https://api.revenuecat.com/v1/subscribers/';
 const no = (reason) => ({ verified: false, reason });
 
+const usedElsewhere = (all, code, txn) => (all || []).some((o) => o && o.code !== code
+    && o.play && o.play.verified_at && o.play.store_transaction_id === txn);
+
 // Verify a Play Store purchase against RevenueCat. Never throws.
 async function verifyPlayPurchase(entry, allEntries, { apiKey, fetchImpl = fetch } = {}) {
     const rcUser = entry && entry.play && entry.play.rc_app_user_id;
@@ -27,14 +30,12 @@ async function verifyPlayPurchase(entry, allEntries, { apiKey, fetchImpl = fetch
         && body.subscriber.non_subscriptions.full_access;
     const items = Array.isArray(raw) ? raw : [];
     const orderId = entry.google_play_order_id;
-    const match = orderId === 'unknown'
-        ? items.find((i) => i && i.store_transaction_id)
-        : items.find((i) => i && i.store_transaction_id === orderId);
-    if (!match) return no('not_found');
-
-    const used = (allEntries || []).some((o) => o && o.code !== entry.code && o.play
-        && o.play.verified_at && o.play.store_transaction_id === match.store_transaction_id);
-    if (used) return no('transaction_already_used');
+    const isUsed = (txn) => usedElsewhere(allEntries, entry.code, txn);
+    const candidates = items.filter((i) => i && i.store_transaction_id
+        && (orderId === 'unknown' || i.store_transaction_id === orderId));
+    if (!candidates.length) return no('not_found');
+    const match = candidates.find((i) => !isUsed(i.store_transaction_id));
+    if (!match) return no('transaction_already_used');
 
     return {
         verified: true,
@@ -47,14 +48,17 @@ async function verifyPlayPurchase(entry, allEntries, { apiKey, fetchImpl = fetch
 // Load the entry, verify it and persist play.* on success.
 async function applyVerification(code, opts = {}) {
     const o = { apiKey: process.env.REVENUECAT_SECRET_KEY, ...opts };
-    const entry = store.readJSON('activation-codes.json', []).find((c) => c.code === code);
+    const before = store.readJSON('activation-codes.json', []);
+    const entry = before.find((c) => c.code === code);
     if (!entry) return no('not_found');
-    const result = await verifyPlayPurchase(entry, store.readJSON('activation-codes.json', []), o);
+    const result = await verifyPlayPurchase(entry, before, o);
     if (!result.verified) return result;
-    // Re-read so a write that happened during the network call is not lost.
+    // Re-read after the network call and re-check synchronously before writing,
+    // so concurrent verifications cannot both claim one transaction.
     const codes = store.readJSON('activation-codes.json', []);
     const fresh = codes.find((c) => c.code === code);
     if (!fresh) return no('not_found');
+    if (usedElsewhere(codes, code, result.store_transaction_id)) return no('transaction_already_used');
     fresh.play = {
         ...(fresh.play || {}),
         verified_at: new Date().toISOString(),
