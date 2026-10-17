@@ -243,7 +243,7 @@ Source: ACM Table (November 2025) + ACM Guide (September 2025)
 |-----------|------|:---------:|------------|
 | Course / Programme Fee | Per location table above | ✓ | Includes reg & exam fees. Must be entirely borne by employer |
 | Study Allowance | Per location table above | ✓ | Full-time only. Prorated if starts/ends mid-month |
-| Thesis Allowance | Masters: RM600/mth; PhD: RM1,000/mth | ✓ | Masters and PhD only |
+| Thesis Allowance | Masters: RM600; PhD: RM1,000 (once per trainee, full-time courses) | ✓ | Masters and PhD only |
 | Air Ticket | Actual airfare (overseas: 50%) | ✓ | Overseas programmes only |
 | Consumable Materials | RM100/group | ✓ | |
 | Meal Allowance | — | ✗ | Study allowance covers subsistence |

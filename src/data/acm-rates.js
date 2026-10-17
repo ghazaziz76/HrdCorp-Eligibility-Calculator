@@ -56,8 +56,8 @@ export const RATES = {
   development: {
     study_local: 900,       // RM per month — local study allowance
     study_overseas: 5000,   // RM per month — overseas study allowance
-    thesis_masters: 600,    // RM per month — thesis writing allowance (Master's)
-    thesis_phd: 1000,       // RM per month — thesis writing allowance (PhD)
+    thesis_masters: 600,    // RM once per trainee, full-time only (ACM Guide Sep 2025, s.8) — Master's
+    thesis_phd: 1000,       // RM once per trainee, full-time only (ACM Guide Sep 2025, s.8) — PhD
   },
 
   seminar: {
