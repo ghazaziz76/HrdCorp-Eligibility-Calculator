@@ -87,11 +87,15 @@ function mutate(entry, now, fn, costUsd) {
     store.writeJSON(SPEND_FILE, sp);
 }
 
+const safeCost = (c) => (Number.isFinite(c) && c >= 0 ? c : getSettings().cost.fallback_per_call_usd);
+
 function recordSuccess(entry, costUsd, now) {
+    costUsd = safeCost(costUsd);
     mutate(entry, now, (r) => { r.used += 1; r.total += 1; r.last_used_at = now.toISOString(); }, costUsd);
 }
 
 function recordFailure(entry, costUsd, now) {
+    costUsd = safeCost(costUsd);
     mutate(entry, now, (r) => { r.failed.count += 1; }, costUsd);
 }
 
@@ -113,6 +117,14 @@ function accessFor(entry, now) {
     });
 }
 
+// Mail failed: un-set the flag so the next call retries.
+function clearFlag(now, key) {
+    const r = spendRow(now);
+    r[key] = null;
+    store.writeJSON(SPEND_FILE, r);
+    console.error(`[Usage] spend alert mail failed (${key}); will retry`);
+}
+
 async function checkSpendAlerts(now) {
     const sp = getSpend(now);
     const row = spendRow(now);
@@ -121,13 +133,15 @@ async function checkSpendAlerts(now) {
         row.paused_email_at = now.toISOString();
         if (!row.warned80_at) row.warned80_at = row.paused_email_at;
         store.writeJSON(SPEND_FILE, row);
-        await sendAdminMail('TGE AI paused: monthly spend limit reached (100%)',
+        const ok = await sendAdminMail('TGE AI paused: monthly spend limit reached (100%)',
             `AI spend for ${sp.month} is ${fmt(sp.usd)} of the ${fmt(sp.limit_usd)} limit. AI extraction is paused for everyone until next month or until you raise the limit in the TGE admin. The rest of the TGE keeps working.`);
+        if (!ok) clearFlag(now, 'paused_email_at');
     } else if (sp.pct >= 80 && sp.pct < 100 && !row.warned80_at) {
         row.warned80_at = now.toISOString();
         store.writeJSON(SPEND_FILE, row);
-        await sendAdminMail('TGE AI spend at 80% of monthly limit',
+        const ok = await sendAdminMail('TGE AI spend at 80% of monthly limit',
             `AI spend for ${sp.month} is ${fmt(sp.usd)} of the ${fmt(sp.limit_usd)} limit (80% reached). At 100% AI pauses for everyone.`);
+        if (!ok) clearFlag(now, 'warned80_at');
     }
 }
 

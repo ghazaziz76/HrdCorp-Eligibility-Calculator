@@ -116,3 +116,22 @@ test('accessFor trips failed_cap after 10 failures today', () => {
   for (let i = 0; i < 10; i++) U.recordFailure(e, 0, NOW);
   assert.equal(U.accessFor(e, NOW).ai.reason, 'failed_cap');
 });
+
+test('mail failure clears the alert flag and a later call retries', async () => {
+  U.recordSuccess(entry(), 16, NOW);
+  const saved = { log: process.env.TGE_MAIL_LOG, u: process.env.SMTP_USER, p: process.env.SMTP_PASS };
+  delete process.env.TGE_MAIL_LOG; delete process.env.SMTP_USER; delete process.env.SMTP_PASS;
+  const origErr = console.error; console.error = () => {};
+  try { await U.checkSpendAlerts(NOW); } finally { console.error = origErr; }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'tge-spend.json'), 'utf8')).warned80_at, null);
+  process.env.TGE_MAIL_LOG = saved.log;
+  await U.checkSpendAlerts(NOW);
+  await U.checkSpendAlerts(NOW);
+  assert.equal(mails().length, 1);
+});
+
+test('non-finite cost falls back to the per-call fallback', () => {
+  U.recordFailure(entry(), NaN, NOW);
+  U.recordSuccess(entry(), undefined, NOW);
+  assert.equal(U.getSpend(NOW).usd, 0.1);
+});
