@@ -73,7 +73,9 @@ async function sendAlert(alerts) {
     }
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
+        host: process.env.SMTP_HOST || 'mail.milleniumrx.biz',
+        port: parseInt(process.env.SMTP_PORT) || 465,
+        secure: true,
         auth: { user: smtpUser, pass: smtpPass },
     });
 

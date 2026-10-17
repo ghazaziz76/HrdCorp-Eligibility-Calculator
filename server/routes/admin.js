@@ -36,9 +36,10 @@ const readJSON  = (file) => JSON.parse(fs.readFileSync(path.join(DATA_DIR, file)
 const writeJSON = (file, data) => fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2));
 
 // ── Public endpoints ──────────────────────────────────────
-router.get('/rates',   (req, res) => res.json(readJSON('acm-rates.json')));
-router.get('/docs',    (req, res) => res.json(readJSON('acm-documents.json')));
-router.get('/version', (req, res) => res.json(readJSON('version.json')));
+router.get('/rates',    (req, res) => res.json(readJSON('acm-rates.json')));
+router.get('/docs',     (req, res) => res.json(readJSON('acm-documents.json')));
+router.get('/version',  (req, res) => res.json(readJSON('version.json')));
+router.get('/app-mode', (req, res) => res.json(readJSON('app-mode.json')));
 
 // PDF files — check if they exist before redirecting
 router.get('/pdf/:type', (req, res) => {
@@ -77,6 +78,16 @@ router.post('/admin/docs', auth, (req, res) => {
 router.post('/admin/version', auth, (req, res) => {
     writeJSON('version.json', req.body);
     res.json({ success: true });
+});
+
+// ── Admin: update app mode ───────────────────────────────
+router.post('/admin/app-mode', auth, (req, res) => {
+    const { mode } = req.body;
+    if (mode !== 'testing' && mode !== 'live') {
+        return res.status(400).json({ error: 'Mode must be "testing" or "live"' });
+    }
+    writeJSON('app-mode.json', { mode, switched_at: new Date().toISOString(), switched_by: 'admin' });
+    res.json({ success: true, mode });
 });
 
 // ── Admin: upload PDF ─────────────────────────────────────
