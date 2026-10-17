@@ -2,9 +2,20 @@ const express = require('express');
 const router  = express.Router();
 const crypto  = require('crypto');
 const store   = require('../lib/store');
+const usage   = require('../lib/usage');
 
 const readCodes  = () => store.readJSON('activation-codes.json', []);
 const writeCodes = (codes) => store.writeJSON('activation-codes.json', codes);
+
+const lockedReason = (entry) => {
+    if (entry.admin && entry.admin.revoked) return 'revoked';
+    return (entry.newsletter && entry.newsletter.locked_reason) || 'not_entitled';
+};
+const lockedResponse = (res, entry) => res.status(403).json({
+    success: false,
+    message: 'This code is no longer active. Contact admin@milleniumrx.biz',
+    reason: lockedReason(entry),
+});
 
 // ── POST /api/employer/activation-codes ──────────────────
 // Mobile app registers a new activation code after purchase
@@ -81,6 +92,8 @@ router.post('/employer/validate-code', (req, res) => {
         return res.status(404).json({ success: false, message: 'Invalid activation code' });
     }
 
+    if (usage.accessFor(entry, new Date()).tge === 'locked') return lockedResponse(res, entry);
+
     // Generate a session token for this web session
     const sessionToken = crypto.randomBytes(32).toString('hex');
     entry.activated = true;
@@ -111,10 +124,23 @@ router.get('/employer/check-session', (req, res) => {
     const entry = codes.find(c => c.session_token === session_token && c.activated);
 
     if (entry) {
-        res.json({ success: true, data: { validated: true, feature_key: entry.feature_key } });
+        if (usage.accessFor(entry, new Date()).tge === 'locked') return lockedResponse(res, entry);
+        res.json({ success: true, data: { validated: true, feature_key: entry.feature_key, code: entry.code } });
     } else {
         res.json({ success: false, message: 'Not yet activated' });
     }
+});
+
+// ── POST /api/employer/access ────────────────────────────
+// Current access (TGE state + AI allowance) for a code
+router.post('/employer/access', (req, res) => {
+    const { code } = req.body || {};
+    if (!code || typeof code !== 'string') {
+        return res.status(400).json({ success: false, message: 'Missing code' });
+    }
+    const entry = readCodes().find(c => c.code === code);
+    if (!entry) return res.status(404).json({ success: false, message: 'Invalid activation code' });
+    res.json({ success: true, data: usage.accessFor(entry, new Date()) });
 });
 
 // ── POST /api/employer/generate-qr-session ───────────────

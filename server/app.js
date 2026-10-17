@@ -3,11 +3,16 @@ const cors    = require('cors');
 const path    = require('path');
 const adminRoutes      = require('./routes/admin');
 const activationRoutes = require('./routes/activation');
+const newsletterRoutes = require('./routes/newsletter');
 
 function createApp() {
     const app = express();
 
     app.use(cors());
+    // The newsletter router needs the raw body for HMAC verification, so it
+    // must be mounted before the global JSON parser.
+    app.use('/api/newsletter', newsletterRoutes);
+
     app.use(express.json());
 
     // ── API routes ────────────────────────────────────────
