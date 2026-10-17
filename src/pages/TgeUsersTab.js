@@ -82,6 +82,11 @@ export default function TgeUsersTab({ adminHeader, showMsg }) {
         if (out && out.result && out.result.reason) showMsg(`Play verification: ${out.result.reason}`);
     };
     const saveSettings = () => {
+        const raw = [limitInput, cost.input_per_mtok, cost.output_per_mtok, cost.fallback_per_call_usd];
+        if (raw.some((v) => String(v ?? '').trim() === '')) {
+            showMsg('Settings fields cannot be blank', true);
+            return;
+        }
         const lim = Number(limitInput);
         const c = {};
         for (const k of ['input_per_mtok', 'output_per_mtok', 'fallback_per_call_usd']) c[k] = Number(cost[k]);
