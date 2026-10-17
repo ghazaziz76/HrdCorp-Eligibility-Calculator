@@ -154,6 +154,7 @@ test('validates and coerces model output', () => {
     // Venue only for types that have the Venue box.
     assert.strictEqual(validateFields({ ...GOOD, trainingType: 'inhouse', venue: 'external_hotel' }).venue, 'external_hotel');
     assert.strictEqual(validateFields({ ...GOOD, trainingType: 'public', venue: 'external_hotel' }).venue, null);
+    assert.strictEqual(validateFields({ ...GOOD, trainingType: 'rot_public', venue: 'external_hotel' }).venue, 'external_hotel');
     assert.deepStrictEqual(Object.keys(validateFields({})).sort(),
         ['actualCourseFee', 'days', 'duration', 'trainingProgrammeName', 'trainingType', 'venue']);
 });

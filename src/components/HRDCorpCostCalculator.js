@@ -85,6 +85,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
     const isPublic            = trainingType === 'public';
     const isInhouse           = trainingType === 'inhouse' || isROTInhouse || isCoachingMentoring;
     const isHotel             = venue === 'external_hotel'; // no !isROT — ROT at hotel is valid
+    // ROT at own premises / own location: nobody travels, so no KM and meal allowance only.
+    const isROTOwnLocation    = isROT && !isHotel;
     const isGeneralCourse     = courseCategory === 'general_non_technical' || courseCategory === 'general_technical' || courseCategory === 'general';
 
     // ── Branch handlers ───────────────────────────────────────
@@ -253,7 +255,7 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
 
     // ── Brochure upload: AI fills up to six boxes ─────────
     // Type first; venue only for types that have a Venue box; nulls are skipped.
-    const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'coaching_mentoring', 'development'];
+    const VENUE_TYPES = ['inhouse', 'rot_inhouse', 'rot_public', 'coaching_mentoring', 'development'];
     const SLB_TYPES   = ['inhouse', 'rot_inhouse'];
     // These types hide the Days and Duration boxes.
     const NO_DAYS_TYPES = ['elearning', 'mobile_elearning', 'development'];
@@ -451,16 +453,16 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     </div>
                     )}
 
-                    {/* Venue — for in-house (including ROT inhouse) and development */}
-                    {(isInhouse || isDevelopment) && (
+                    {/* Venue — for in-house, all ROT (decides meal vs daily allowance) and development */}
+                    {(isInhouse || isDevelopment || isROTPublic) && (
                         <div style={rStyle}>
                             <label style={lStyle}>Training Venue{brochureTag('venue')}</label>
                             <select style={iStyle} value={venue} onChange={e => { setVenue(e.target.value); unmark('venue'); setResult(null); }}>
                                 <option value="employer_premises">
-                                    {isDevelopment ? 'College / University / Training Institution' : isROT ? 'Employer\'s Own Premises (ROT — Inhouse)' : 'Employer\'s Own Premises'}
+                                    {isDevelopment ? 'College / University / Training Institution' : isROT ? 'Own Premises / Own Location (ROT) — meal allowance' : 'Employer\'s Own Premises'}
                                 </option>
                                 <option value="external_hotel">
-                                    {isDevelopment ? 'Overseas Institution' : isROT ? 'External Venue / Hotel (ROT — Outside)' : 'Hotel / External Training Centre'}
+                                    {isDevelopment ? 'Overseas Institution' : isROT ? 'External Venue / Hotel (ROT) — daily allowance' : 'Hotel / External Training Centre'}
                                 </option>
                             </select>
                         </div>
@@ -703,8 +705,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                     badgeColor="#1565c0"
                     pax={host.pax}
                     kmDistance={host.kmDistance}
-                    showKm={isHotel || isPublic || isROTPublic || isSeminar}
-                    hint={isElearning || isROTPublic ? false : undefined}
+                    showKm={(isHotel || isPublic || isROTPublic || isSeminar) && !isROTOwnLocation}
+                    hint={isElearning ? false : undefined}
                     onPaxChange={v => setHost(h => ({ ...h, pax: v }))}
                     onKmChange={v  => setHost(h => ({ ...h, kmDistance: v }))}
                 />
@@ -720,8 +722,8 @@ export const HRDCorpCostCalculator = ({ initialPlan } = {}) => {
                         badgeColor="#2e7d32"
                         pax={b.pax}
                         kmDistance={b.kmDistance}
-                        showKm={true}
-                        hint={false}
+                        showKm={!isROTOwnLocation}
+                        hint={isROTOwnLocation ? undefined : false}
                         onPaxChange={v => updateBranch(i, 'pax', v)}
                         onKmChange={v  => updateBranch(i, 'kmDistance', v)}
                         onRemove={() => removeBranch(i)}

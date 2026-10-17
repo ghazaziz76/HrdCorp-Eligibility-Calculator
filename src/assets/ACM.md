@@ -187,7 +187,7 @@ Source: ACM Table (November 2025) + ACM Guide (September 2025)
 
 > ROT is synchronous — live sessions via Zoom / Teams / Webex at a fixed schedule.
 > Trainer and trainees are not in the same physical location.
-> Venue selection determines whether it is treated as ROT In-House (own premise) or ROT Outside (external venue).
+> The venue question is asked for ROT In-House and ROT Public, and it decides the allowance: own premises / own location = meal allowance only (nobody travels, so no daily allowance); external venue / hotel = daily (travel) allowance only.
 
 | Cost Item | Rate | ROT — Own Premise | ROT — External Venue |
 |-----------|------|:-----------------:|:--------------------:|
@@ -195,8 +195,8 @@ Source: ACM Table (November 2025) + ACM Guide (September 2025)
 | B) Course Fee — General (external trainer, no subsidiary) | Full: RM10,500/day/group; Half: RM6,000/day/group | ✓ | ✓ |
 | B) Course Fee — General (external trainer, with subsidiary — HCC/SBL only) | Full: RM1,750/pax/day; Half: RM1,000/pax/day | ✓ Each co. pays per own pax | ✓ Each co. pays per own pax |
 | B) Course Fee — Focus Area / Ind. Specific / Prof Cert | As charged, per pax | ✓ | ✓ |
-| C) Travel Allowance | <100km: RM250/day/pax; ≥100km: RM500/day/pax | ✓ Branch/sub trainees only | ✓ All trainees |
-| D) Meal Allowance | Full: RM100/day/pax; Half: RM50/day/pax | ✓ Host trainees only | ✗ External venue covers meals |
+| C) Travel (Daily) Allowance | <100km: RM250/day/pax; ≥100km: RM500/day/pax | ✗ Nobody travels | ✓ All trainees |
+| D) Meal Allowance | Full: RM100/day/pax; Half: RM50/day/pax | ✓ All trainees (host and branches, each at own workplace) | ✗ External venue covers meals |
 | G) Air Ticket | Actual airfare | ✗ Not applicable | ✗ Not applicable |
 | H) Chartered Transport | As per quotation | ✗ | ✓ |
 | I) Consumable Materials | RM100/group; >RM100 itemised invoice | ✓ | ✓ |
@@ -204,6 +204,7 @@ Source: ACM Table (November 2025) + ACM Guide (September 2025)
 **Notes:**
 - Schemes: HCC, SBL, SLB.
 - Air ticket is NOT claimable for ROT — trainer delivers online; trainees attend from their location.
+- Owner's rule (Oct 2026): HRD Corp says ROT is treated the same as face-to-face, but the daily allowance is for travelling to the training location, so ROT at own premises / own location gets the meal allowance instead of the daily allowance.
 - SLB cost mode: group rate ÷ total pax × each employer's pax. Never public rate.
 - SLB consumables: organising employer only.
 - **Actual Course Fee (External trainer):** Enter the actual fee from the brochure or offer letter. If actual fee ≤ ACM ceiling → system claims actual fee. If actual fee > ACM ceiling → system claims up to ACM ceiling only; excess is self-funded. Leave blank → system uses ACM ceiling rate.

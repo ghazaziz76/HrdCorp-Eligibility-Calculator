@@ -95,12 +95,12 @@ test('applies fields through setters and clears result', async () => {
 });
 
 test('venue is not changed for a type without a Venue box', async () => {
-    mockServer({ trainingProgrammeName: null, trainingType: 'rot_public', venue: 'external_hotel', days: null, duration: null, actualCourseFee: null });
+    mockServer({ trainingProgrammeName: null, trainingType: 'public', venue: 'external_hotel', days: null, duration: null, actualCourseFee: null });
     await renderWithScheme();
     expect(control('Training Venue').value).toBe('employer_premises');
 
     await upload();
-    expect(control('Type of Training').value).toBe('rot_public');
+    expect(control('Type of Training').value).toBe('public');
     expect(control('Training Venue')).toBeNull();
 
     // Switch back to in-house by hand: the venue is still the old one.

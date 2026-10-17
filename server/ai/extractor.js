@@ -30,7 +30,7 @@ const TRAINING_TYPES = new Set([
 const VENUES = new Set(['employer_premises', 'external_hotel']);
 const DURATIONS = new Set(['full_day', 'half_day']);
 // The Venue box only exists for these types.
-const VENUE_TYPES = new Set(['inhouse', 'rot_inhouse', 'coaching_mentoring', 'development']);
+const VENUE_TYPES = new Set(['inhouse', 'rot_inhouse', 'rot_public', 'coaching_mentoring', 'development']);
 
 const SYSTEM_PROMPT = `You read Malaysian training brochures and pull out details for an HRD Corp training grant calculator.
 
@@ -41,7 +41,7 @@ Use null for anything the brochure does not state. Never guess.
 
 - trainingProgrammeName: the course title exactly as printed, e.g. "Associate HR Professional Certificate (AHRP)".
 - trainingType: one of inhouse, rot_inhouse, coaching_mentoring, rot_public, public, seminar_conference, elearning, mobile_elearning, overseas, overseas_seminar, development. A public course held on Zoom or online is rot_public.
-- venue: employer_premises or external_hotel, only when the brochure states the venue and trainingType is inhouse, rot_inhouse, coaching_mentoring or development. Otherwise null.
+- venue: employer_premises or external_hotel, only when the brochure states the venue and trainingType is inhouse, rot_inhouse, rot_public, coaching_mentoring or development. For online training (rot_inhouse, rot_public), external_hotel only when the brochure names a physical venue where trainees gather; joining online from anywhere = null. Otherwise null.
 - days: the number of training days. A printed "N days" wins over counting dates; otherwise count the listed dates (e.g. "19-23, 26-27 Oct" = 7).
 - duration: full_day when a training day has 7 or more training hours (e.g. 9am-5pm), half_day when under 7. Training hours = session span minus a stated lunch break; if no break is stated, use the span. If no hours are stated, null.
 - actualCourseFee: the standard per-person (per pax) fee in RM as a plain number, e.g. "RM129.00 excl SST" = 129. Use the standard fee, not early-bird, member or group prices, unless that is the only price. Give the printed amount.

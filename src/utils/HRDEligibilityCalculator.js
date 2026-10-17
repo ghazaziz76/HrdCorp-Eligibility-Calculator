@@ -583,7 +583,11 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     // ─────────────────────────────────────────────────────────
     if (!isElearning && !isAnyOverseas && !isDevelopment) {
 
-        if (isHotel || isPublic || isROTPublic || isLocalSeminar) {
+        // ROT: the venue decides the allowance. Own premises / own location = meal only (nobody travels);
+        // external venue / hotel = daily (travel) allowance only.
+        const rotOwnLocation = isROT && !isHotel;
+
+        if ((isHotel || isPublic || isROTPublic || isLocalSeminar) && !rotOwnLocation) {
             // All participants travel to venue; no meal (hotel/venue covers meals)
             // Includes: ROT at external venue, public, ROT-public, local seminar
             let travelTotal = 0;
@@ -617,10 +621,10 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                 });
             }
 
-        } else if (isInhouse && !isHotel) {
-            // Own premise (includes ROT own premise):
+        } else if ((isInhouse && !isHotel) || rotOwnLocation) {
+            // Own premise:
             // — host company staff → meal allowance
-            // — branches / subsidiaries → travel allowance
+            // — branches → travel allowance (face-to-face) or meal allowance (ROT: they join from their own workplace)
             let mealTotal   = 0;
             let travelTotal = 0;
             const mealBreakdown   = [];
@@ -647,6 +651,15 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
             branches.forEach(b => {
                 const bPax = parseInt(b.pax) || 0;
                 if (bPax <= 0) return;
+                if (rotOwnLocation) {
+                    const amt = mealRate * bPax * days;
+                    mealTotal += amt;
+                    mealBreakdown.push({
+                        label: b.label || 'Branch', pax: bPax, amount: Math.round(amt),
+                        note:  `RM${mealRate}/pax/day × ${bPax} pax × ${days} day(s)${isHalfDay ? ' (half-day)' : ''} (joining online from own workplace)`
+                    });
+                    return;
+                }
                 const rate       = travelRate(b.kmDistance);
                 const travelDays = travelDaysFor(b.kmDistance);
                 const amt        = rate * bPax * travelDays;
@@ -665,7 +678,9 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
                     label:     'D) Meal Allowance',
                     eligible:  true,
                     amount:    Math.round(mealTotal),
-                    note:      `RM${mealRate}/pax/day — host company staff at employer premises${isHalfDay ? ' (half-day rate)' : ''}`,
+                    note:      rotOwnLocation
+                        ? `RM${mealRate}/pax/day — ROT trainees joining from their own premises${isHalfDay ? ' (half-day rate)' : ''}`
+                        : `RM${mealRate}/pax/day — host company staff at employer premises${isHalfDay ? ' (half-day rate)' : ''}`,
                     documents: CLAIM_DOCS.none,
                     perCompany: mealBreakdown
                 });
@@ -997,8 +1012,9 @@ export function calculateEligibility(inputs, ratesOverride = null, claimDocsOver
     // DEFICIT 16 FIX: ROT warning now correctly states travel IS claimable (venue-dependent)
     if (isROT) {
         warnings.push(
-            'ℹ️ ROT (Remote Online Training): Air ticket is NOT claimable. ' +
-            'Travel allowance IS claimable — own premise: branch/subsidiary trainees only; external venue: all trainees. ' +
+            'ℹ️ ROT (Remote Online Training): Air ticket is NOT claimable. The venue decides the allowance — ' +
+            'Own premises / own location: meal allowance only (no daily allowance, nobody travels). ' +
+            'External venue / hotel: daily (travel) allowance only. ' +
             'Chartered transport IS claimable at external venues.'
         );
     }
