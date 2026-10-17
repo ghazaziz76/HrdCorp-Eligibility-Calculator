@@ -23,6 +23,7 @@ function App() {
           <Route path="/hrd-calculator" element={<GatedCalculator />} />
           <Route path="/product/calculator/desktop" element={<GatedCalculator />} />
           <Route path="/admin"          element={<AdminPage />} />
+          <Route path="/product/calculator/desktop/admin" element={<AdminPage />} />
           <Route path="*"               element={<GatedCalculator />} />
         </Routes>
       </Router>
